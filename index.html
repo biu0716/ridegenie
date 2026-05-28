@@ -58,7 +58,7 @@
   .rcard-title{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
   .rcard-badge{padding:3px 8px;border-radius:10px;font-size:11px;font-family:'Space Mono',monospace}
   .rcard-desc{font-size:12px;color:var(--text-dim);margin-bottom:10px}
-  .rstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .rstats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .rsl{font-size:10px;color:var(--text-dim)}.rsv{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
   .epanel{height:140px;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:none}.epanel.show{display:block}
   .etitle{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px}
@@ -80,18 +80,16 @@
     <div class="sidebar-body">
       <div class="form-section"><div class="form-section-title">📍 出发点</div><div style="position:relative"><input class="form-input" id="si" placeholder="搜索地址或点击地图选点" autocomplete="off"><div class="sbox" id="ss"></div></div></div>
 
+      <div class="form-section"><div class="form-section-title">🏁 终点 <span style="font-family:'DM Sans';font-size:11px;color:var(--text-dim);text-transform:none;letter-spacing:0">（选填，不填则生成环线）</span></div><div style="position:relative"><input class="form-input" id="ei" placeholder="不填 = 环线骑行，从起点出发绕回起点" autocomplete="off"><div class="sbox" id="es"></div></div></div>
+
       <div class="form-section">
         <div class="form-section-title">🛣 目标里程范围</div>
-        <div class="distance-display">
-          <div class="distance-value" id="dd">25 - 35</div>
-          <div class="distance-unit">km</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" class="form-input" id="dist-lo" value="25" min="0" max="500" step="5" style="width:80px;text-align:center;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent)">
+          <span style="color:var(--text-dim);font-size:14px">—</span>
+          <input type="number" class="form-input" id="dist-hi" value="35" min="0" max="500" step="5" style="width:80px;text-align:center;font-family:'Space Mono',monospace;font-size:16px;font-weight:700;color:var(--accent)">
+          <span style="color:var(--text-dim);font-size:14px">km</span>
         </div>
-        <div class="range-row">
-          <input type="range" id="ds-min" min="5" max="90" step="5" value="25" style="flex:1">
-          <span style="color:var(--text-dim);font-size:12px">~</span>
-          <input type="range" id="ds-max" min="10" max="100" step="5" value="35" style="flex:1">
-        </div>
-        <div class="range-labels"><span>5km</span><span>50km</span><span>100km</span></div>
       </div>
 
       <div class="form-section"><div class="form-section-title">🏙 骑行区域</div><div class="chip-group" data-name="area"><div class="chip" data-value="urban">市区</div><div class="chip active" data-value="suburban">郊区</div><div class="chip" data-value="any">都行</div></div><input class="form-input note-input" data-note="area" placeholder="补充说明，如：望京附近" style="margin-top:8px;font-size:12px;padding:7px 12px"></div>
@@ -123,14 +121,23 @@ setTimeout(function(){if(typeof window.AMap!=='undefined'&&!window._started)run(
 function run(){
   if(window._started)return;window._started=true;
   var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
-  var S={startPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京',notes:{}};
+  var S={startPoint:null,endPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京',notes:{}};
   var map,geo,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
-  // Route labels
-  var routeLabels=[
-    {name:'路线 A · 紧凑环线',desc:'更短更直的环形，适合高效骑行'},
-    {name:'路线 B · 宽松环线',desc:'更宽更绕的环形，沿途风景更多'},
-    {name:'路线 C · 探索环线',desc:'往相反方向展开，探索不同区域'}
-  ];
+  // Route labels - will be dynamically set based on mode
+  function getRouteLabels(){
+    if(S.endPoint){
+      return[
+        {name:'路线 A · 最短路线',desc:'起点到终点最直接的骑行路径'},
+        {name:'路线 B · 绕行路线',desc:'稍微绕路，满足目标里程'},
+        {name:'路线 C · 风景路线',desc:'更长的路线，经过更多有趣的地方'}
+      ];
+    }
+    return[
+      {name:'路线 A · 紧凑环线',desc:'更短更直的环形，适合高效骑行'},
+      {name:'路线 B · 宽松环线',desc:'稍宽的环形，沿途风景更多'},
+      {name:'路线 C · 探索环线',desc:'往不同方向展开，探索新区域'}
+    ];
+  }
 
   // REST API
   function restTips(kw,city){
@@ -159,22 +166,49 @@ function run(){
   }
 
   function asm(){
-    mg.forEach(function(m){if(m._s)map.remove(m)});mg=mg.filter(function(m){return!m._s});
+    mg.forEach(function(m){if(m._s||m._e)map.remove(m)});mg=mg.filter(function(m){return!m._s&&!m._e});
     document.getElementById('me').style.display='none';
-    if(!S.startPoint)return;
-    var m=new AMap.Marker({position:[S.startPoint.lng,S.startPoint.lat],content:'<div style="width:24px;height:24px;background:#4ade80;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',offset:new AMap.Pixel(-12,-12)});
-    m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
+    if(S.startPoint){
+      var m=new AMap.Marker({position:[S.startPoint.lng,S.startPoint.lat],content:'<div style="width:24px;height:24px;background:#4ade80;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',offset:new AMap.Pixel(-12,-12)});
+      m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
+    }
+    if(S.endPoint){
+      var m2=new AMap.Marker({position:[S.endPoint.lng,S.endPoint.lat],content:'<div style="width:24px;height:24px;background:#f87171;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',offset:new AMap.Pixel(-12,-12)});
+      m2._e=true;map.add(m2);mg.push(m2);
+    }
   }
 
-  // Distance range sliders
-  var dsMin=document.getElementById('ds-min'),dsMax=document.getElementById('ds-max');
-  function updateDist(){
-    var lo=parseInt(dsMin.value),hi=parseInt(dsMax.value);
-    if(lo>hi-5){if(this===dsMin)dsMin.value=hi-5;else dsMax.value=lo+5;lo=parseInt(dsMin.value);hi=parseInt(dsMax.value)}
-    S.distMin=lo;S.distMax=hi;
-    document.getElementById('dd').textContent=lo+' - '+hi;
+  // Distance number inputs
+  var distLo=document.getElementById('dist-lo'),distHi=document.getElementById('dist-hi');
+  distLo.onchange=function(){S.distMin=Math.max(0,parseInt(this.value)||0);if(S.distMin>S.distMax)S.distMax=S.distMin;distHi.value=S.distMax};
+  distHi.onchange=function(){S.distMax=Math.max(0,parseInt(this.value)||0);if(S.distMax<S.distMin)S.distMin=S.distMax;distLo.value=S.distMin};
+
+  // Destination search
+  var et;
+  document.getElementById('ei').addEventListener('input',function(){
+    clearTimeout(et);var v=this.value.trim(),c=document.getElementById('es');
+    if(v.length<2){c.classList.remove('show');S.endPoint=null;return}
+    et=setTimeout(function(){
+      restTips(v,S.city).then(function(d){
+        if(d.status==='1'&&d.tips){
+          var items=d.tips.filter(function(t){return t.location&&t.location.length>2}).slice(0,6).map(function(t){
+            var ll=t.location.split(',');return{name:t.name,dist:t.district||'',lng:parseFloat(ll[0]),lat:parseFloat(ll[1])};
+          });
+          showE(c,items);
+        }else showE(c,[]);
+      }).catch(function(){showE(c,[])});
+    },400);
+  });
+  function showE(c,items){
+    c.innerHTML='';if(!items.length){c.classList.remove('show');return}
+    items.forEach(function(it){
+      var d=document.createElement('div');d.className='si';
+      d.innerHTML=it.name+(it.dist?'<div class="ad">'+it.dist+'</div>':'');
+      d.onclick=function(){S.endPoint={lng:it.lng,lat:it.lat,name:it.name};document.getElementById('ei').value=it.name;c.classList.remove('show');asm();noti('已设置终点','success')};
+      c.appendChild(d);
+    });
+    c.classList.add('show');
   }
-  dsMin.oninput=updateDist;dsMax.oninput=updateDist;
 
   // Search (city-limited)
   var st;
@@ -227,6 +261,7 @@ function run(){
 
   document.addEventListener('click',function(e){
     if(!e.target.closest('#si')&&!e.target.closest('#ss'))document.getElementById('ss').classList.remove('show');
+    if(!e.target.closest('#ei')&&!e.target.closest('#es'))document.getElementById('es').classList.remove('show');
     if(!e.target.closest('#pi')&&!e.target.closest('#ps'))document.getElementById('ps').classList.remove('show');
   });
 
@@ -257,13 +292,15 @@ function run(){
   function gda(d){var a={n:90,ne:45,e:0,se:-45,s:-90,sw:-135,w:180,nw:135};return a[d]!==undefined?a[d]:null}
 
   // Generate waypoints with configurable spread and offset
-  function gwp(c,dk,direction,spread,angleOffset){
-    var R=dk/(2*Math.PI)*1.3,n=4,w=[],ba=gda(direction);
+  // Generate waypoints with adjustable scale factor
+  function gwp(c,dk,direction,spread,angleOffset,scaleFactor){
+    var sf=scaleFactor||1.0;
+    var R=dk/(2*Math.PI)*1.1*sf,n=4,w=[],ba=gda(direction);
     for(var i=0;i<n;i++){
       var ang;
       if(ba!==null) ang=ba-spread/2+(spread/(n-1))*i+angleOffset;
       else ang=(360/n)*i+angleOffset+(Math.random()*20-10);
-      var rad=ang*Math.PI/180,r=R*(.7+Math.random()*.3);
+      var rad=ang*Math.PI/180,r=R*(.75+Math.random()*.25);
       w.push({lng:c.lng+(r/(111*Math.cos(c.lat*Math.PI/180)))*Math.cos(rad),lat:c.lat+(r/111)*Math.sin(rad)});
     }return w;
   }
@@ -293,50 +330,105 @@ function run(){
       });
     })).then(function(){return res});
   }
-  function mel(n,sl){var p=[],e=50+Math.random()*30,mv=sl==='flat'?5:sl==='moderate'?15:10;for(var i=0;i<Math.min(n,200);i++){var pr=i/Math.min(n,200);e+=(Math.random()-.5)*2;p.push(Math.max(10,e+Math.sin(pr*Math.PI*3)*mv+Math.sin(pr*Math.PI*7)*mv*.3))}return p}
 
-  // Calorie estimation: ~22 kcal/km base for cycling + 5 kcal per 10m climb
+  // Elevation: generate mock data but display as qualitative
+  function mel(n,sl){var p=[],e=50+Math.random()*30,mv=sl==='flat'?5:sl==='moderate'?15:10;for(var i=0;i<Math.min(n,200);i++){var pr=i/Math.min(n,200);e+=(Math.random()-.5)*2;p.push(Math.max(10,e+Math.sin(pr*Math.PI*3)*mv+Math.sin(pr*Math.PI*7)*mv*.3))}return p}
+  function elevLabel(elevData){
+    if(!elevData||!elevData.length)return'—';
+    var climb=0;for(var i=1;i<elevData.length;i++)if(elevData[i]>elevData[i-1])climb+=elevData[i]-elevData[i-1];
+    if(climb<30)return'🟢 较平坦';if(climb<80)return'🟡 有起伏';return'🔴 多爬坡';
+  }
+
   function calcCal(distM,elevData){
     var km=distM/1000,climb=0;
     for(var i=1;i<elevData.length;i++)if(elevData[i]>elevData[i-1])climb+=elevData[i]-elevData[i-1];
     return Math.round(km*22+climb*0.5);
   }
 
-  // Route configs: differentiate by direction offset and slight radius variation
   var routeConfigs=[
-    {spread:90,offset:0,radiusMult:0.85},     // Compact: tight arc in preferred direction
-    {spread:120,offset:30,radiusMult:1.0},     // Scenic: slightly wider, shifted 30°
-    {spread:100,offset:180,radiusMult:0.9}     // Explore: opposite direction
+    {spread:90,offset:0,radiusMult:0.85},
+    {spread:120,offset:30,radiusMult:1.0},
+    {spread:100,offset:180,radiusMult:0.9}
   ];
 
-  async function gor(idx){
-    var c=S.startPoint;
-    var cfg=routeConfigs[idx]||routeConfigs[0];
-    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.7:0.5);
-    var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset);
+  // Build a loop route with given scale, return {path, distance, time, failCount}
+  async function buildLoop(c,targetDist,cfg,scaleFactor){
+    var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset,scaleFactor);
     wps=wps.map(function(w){
       var dlng=(w.lng-c.lng)*cfg.radiusMult,dlat=(w.lat-c.lat)*cfg.radiusMult;
       return{lng:c.lng+dlng,lat:c.lat+dlat};
     });
     S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
-    var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0,failCount=0;
+    var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0,fc=0;
     for(var i=0;i<pts.length-1;i++){
       var r=await rr(pts[i],pts[i+1]);
-      if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}
-      else{failCount++}
+      if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}else{fc++}
     }
-    // If more than half segments failed, this route is invalid
-    if(failCount>pts.length/2) return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
     // Ensure closure
     if(fp.length>0){
       var last=fp[fp.length-1];
       if(Math.abs(last.lat-c.lat)>0.001||Math.abs(last.lng-c.lng)>0.001){
-        // Try one more riding route back to start
         var rBack=await rr(last,c);
         if(rBack){td+=rBack.distance;tt+=rBack.time;fp=fp.concat(ep(rBack))}
         else{fp.push({lng:c.lng,lat:c.lat})}
       }
     }
+    return{path:fp,distance:td,time:tt,failCount:fc};
+  }
+
+  async function gor(idx){
+    var c=S.startPoint;
+    var cfg=routeConfigs[idx]||routeConfigs[0];
+    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.7:0.5);
+    var targetDistM=targetDist*1000;
+    var fp=[],td=0,tt=0;
+
+    if(S.endPoint){
+      // A→B mode
+      var end=S.endPoint;
+      var midLng=(c.lng+end.lng)/2,midLat=(c.lat+end.lat)/2;
+      var dx=end.lng-c.lng,dy=end.lat-c.lat;
+      var offsets=[0,0.3,-0.3];
+      var off=offsets[idx]||0;
+      var wpMid={lng:midLng+(-dy)*off,lat:midLat+(dx)*off};
+      var pts=[c,wpMid,end];
+      S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p){pts.splice(pts.length-1,0,{lng:p.location.lng,lat:p.location.lat})});
+      var fc=0;
+      for(var i=0;i<pts.length-1;i++){
+        var r=await rr(pts[i],pts[i+1]);
+        if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}else{fc++}
+      }
+      if(fc>pts.length/2||td===0) return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
+
+    }else{
+      // Loop mode with iterative distance correction
+      var scaleFactor=1.0;
+      var bestResult=null;
+
+      for(var attempt=0;attempt<3;attempt++){
+        var result=await buildLoop(c,targetDist,cfg,scaleFactor);
+        if(result.failCount>3||result.distance===0){
+          // Route completely failed
+          if(!bestResult) bestResult=result;
+          break;
+        }
+        bestResult=result;
+        // Check distance deviation
+        var deviation=result.distance/targetDistM;
+        if(deviation>0.85&&deviation<1.25) break; // within ±25%, good enough
+        // Adjust scale factor: if route is too long, shrink; if too short, expand
+        scaleFactor=scaleFactor/deviation;
+        // Clamp scale factor
+        if(scaleFactor<0.3)scaleFactor=0.3;
+        if(scaleFactor>2.0)scaleFactor=2.0;
+      }
+
+      if(!bestResult||bestResult.failCount>3||bestResult.distance===0)
+        return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
+
+      fp=bestResult.path;td=bestResult.distance;tt=bestResult.time;
+    }
+
     var fpoi=await scpoi(fp);
     var elev=mel(fp.length,S.slope);
     return{index:idx,path:fp,distance:td,time:tt,elevation:elev,calories:calcCal(td,elev),pois:S.pois.filter(function(p){return p.type==='exact'}).map(function(p){return{name:p.name,location:p.location,type:'指定'}}).concat(fpoi)};
@@ -348,7 +440,7 @@ function run(){
     rpl.forEach(function(p){map.remove(p)});rpl=[];mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
     try{
       var routes=[];
-      for(var i=0;i<3;i++){var r=await gor(i);if(r&&r.path.length)routes.push(r)}
+      for(var i=0;i<3;i++){var r=await gor(i);if(r&&r.path.length>10&&r.distance>500)routes.push(r)}
       if(!routes.length){noti('路线规划失败','error');return}
       S.routes=routes;S.activeRoute=0;rrs();rrcs();sel(0);
       document.getElementById('rp').classList.add('show');document.getElementById('ep').classList.add('show');
@@ -378,17 +470,15 @@ function run(){
     S.routes.forEach(function(r,i){
       var dk=(r.distance/1000).toFixed(1),tm=Math.round(r.time/60),h=Math.floor(tm/60),m=tm%60,ts=h?h+'h '+m+'m':m+'min';
       var climb=0;for(var j=1;j<r.elevation.length;j++)if(r.elevation[j]>r.elevation[j-1])climb+=r.elevation[j]-r.elevation[j-1];
-      var lb=routeLabels[i]||routeLabels[0];
+      var labels=getRouteLabels();var lb=labels[i]||labels[0];
       var cd=document.createElement('div');cd.className='rcard'+(i===S.activeRoute?' active':'');
       cd.innerHTML='<div class="rcard-head"><div class="rcard-title" style="color:'+rc[i]+'">'+lb.name+'</div><div class="rcard-badge" style="background:'+rc[i]+'20;color:'+rc[i]+'">'+dk+' km</div></div>'+
         '<div class="rcard-desc">'+lb.desc+'</div>'+
         '<div class="rstats">'+
         '<div><div class="rsl">预计时间</div><div class="rsv">'+ts+'</div></div>'+
-        '<div><div class="rsl">总爬升</div><div class="rsv">+'+climb.toFixed(0)+'m</div></div>'+
         '<div><div class="rsl">🔥 卡路里</div><div class="rsv">'+r.calories+' kcal</div></div>'+
-        '<div><div class="rsl">最高海拔</div><div class="rsv">'+Math.max.apply(null,r.elevation).toFixed(0)+'m</div></div>'+
+        '<div><div class="rsl">坡度</div><div class="rsv" style="font-size:12px">'+elevLabel(r.elevation)+'</div></div>'+
         '<div><div class="rsl">沿途歇脚点</div><div class="rsv">'+r.pois.length+'个</div></div>'+
-        '<div><div class="rsl">类型</div><div class="rsv" style="font-size:11px">'+['紧凑','宽松','探索'][i]+'</div></div>'+
         '</div>';
       cd.onclick=function(){sel(i)};panel.appendChild(cd);
     });
