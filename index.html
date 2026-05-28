@@ -374,6 +374,14 @@ function run(){
     }return w;
   }
 
+  // Haversine distance in meters between two lng/lat points
+  function haversine(a,b){
+    var R=6371000,dLat=(b.lat-a.lat)*Math.PI/180,dLng=(b.lng-a.lng)*Math.PI/180;
+    var lat1=a.lat*Math.PI/180,lat2=b.lat*Math.PI/180;
+    var h=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.sin(dLng/2)*Math.sin(dLng/2)*Math.cos(lat1)*Math.cos(lat2);
+    return 2*R*Math.asin(Math.sqrt(h));
+  }
+
   // Build a loop with explicit radius (km), return {path, distance, time, failCount}
   async function buildLoopR(c,radiusKm,cfg){
     var wps=gwpFixed(c,radiusKm,S.direction,cfg.spread,cfg.offset);
@@ -381,14 +389,24 @@ function run(){
     var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0,fc=0;
     for(var i=0;i<pts.length-1;i++){
       var r=await rr(pts[i],pts[i+1]);
-      if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}else{fc++}
+      if(r){
+        td+=r.distance;tt+=r.time;fp=fp.concat(ep(r));
+      }else{
+        // Straight-line fallback: keep path continuous
+        fc++;
+        var segDist=haversine(pts[i],pts[i+1]);
+        td+=segDist;
+        tt+=segDist/(15000/3600); // assume 15km/h for straight segments
+        fp.push({lng:pts[i].lng,lat:pts[i].lat});
+        fp.push({lng:pts[i+1].lng,lat:pts[i+1].lat});
+      }
     }
+    // Guarantee closure: last point must equal start
     if(fp.length>0){
       var last=fp[fp.length-1];
-      if(Math.abs(last.lat-c.lat)>0.001||Math.abs(last.lng-c.lng)>0.001){
-        var rBack=await rr(last,c);
-        if(rBack){td+=rBack.distance;tt+=rBack.time;fp=fp.concat(ep(rBack))}
-        else{fp.push({lng:c.lng,lat:c.lat})}
+      if(haversine(last,c)>50){ // more than 50m from start
+        fp.push({lng:c.lng,lat:c.lat});
+        td+=haversine(last,c);
       }
     }
     return{path:fp,distance:td,time:tt,failCount:fc};
@@ -425,25 +443,24 @@ function run(){
 
       for(var attempt=0;attempt<5;attempt++){
         var result=await buildLoopR(c,radiusKm,cfg);
-        if(result.failCount>3||result.distance===0){
-          if(!bestResult)bestResult=result;
-          // Try a different radius if failed
+        if(result.distance===0){
           radiusKm=radiusKm*0.7;
           continue;
         }
         var deviation=result.distance/targetDistM;
         var devFromOne=Math.abs(deviation-1);
-        // Keep the best result so far
-        if(devFromOne<bestDev){bestDev=devFromOne;bestResult=result}
-        // Within ±15% → good enough
-        if(deviation>=0.85&&deviation<=1.15) break;
+        // Keep the best result that doesn't have too many failed segments
+        if(devFromOne<bestDev&&result.failCount<=2){bestDev=devFromOne;bestResult=result}
+        else if(!bestResult){bestResult=result}
+        // Within ±15% and mostly real roads → good enough
+        if(deviation>=0.85&&deviation<=1.15&&result.failCount<=1) break;
         // Adjust radius by inverse of deviation
         radiusKm=radiusKm/deviation;
         if(radiusKm<0.5)radiusKm=0.5;
         if(radiusKm>30)radiusKm=30;
       }
 
-      if(!bestResult||bestResult.failCount>3||bestResult.distance===0)
+      if(!bestResult||bestResult.distance===0)
         return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
 
       fp=bestResult.path;td=bestResult.distance;tt=bestResult.time;
