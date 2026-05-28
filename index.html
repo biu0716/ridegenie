@@ -6,7 +6,7 @@
 <title>RideGenie — 智能骑行路线生成器</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
-  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3345;--text:#e4e6ed;--text-dim:#8b8fa3;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.15);--blue:#60a5fa;--red:#f87171}
+  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3345;--text:#e4e6ed;--text-dim:#8b8fa3;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.15);--blue:#60a5fa;--red:#f87171;--orange:#fb923c}
   *{margin:0;padding:0;box-sizing:border-box}
   body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
   .app{display:flex;height:100vh}
@@ -23,10 +23,12 @@
   .form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
   .form-input::placeholder{color:var(--text-dim);opacity:.6}
   .distance-display{display:flex;align-items:baseline;gap:4px;margin-bottom:8px}
-  .distance-value{font-family:'Space Mono',monospace;font-size:32px;font-weight:700;color:var(--accent);line-height:1}
+  .distance-value{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:var(--accent);line-height:1}
   .distance-unit{font-size:14px;color:var(--text-dim)}
-  input[type=range]{width:100%;-webkit-appearance:none;height:6px;background:var(--surface2);border-radius:3px;outline:none}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer}
+  .range-row{display:flex;gap:12px;align-items:center}
+  .range-row input[type=range]{flex:1}
+  input[type=range]{-webkit-appearance:none;height:6px;background:var(--surface2);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--accent);cursor:pointer}
   .range-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:4px;font-family:'Space Mono',monospace}
   .chip-group{display:flex;flex-wrap:wrap;gap:8px}
   .chip{padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;color:var(--text-dim);cursor:pointer;user-select:none;transition:all .2s}
@@ -49,14 +51,15 @@
   .gen-btn:hover{background:var(--accent-dim);transform:translateY(-1px);box-shadow:0 4px 20px var(--accent-glow)}
   .gen-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
   .sidebar-footer{padding:16px 24px;border-top:1px solid var(--border)}
-  .rpanel{position:absolute;top:16px;right:16px;width:320px;z-index:10;display:none}.rpanel.show{display:block}
+  .rpanel{position:absolute;top:16px;right:16px;width:340px;z-index:10;display:none}.rpanel.show{display:block}
   .rcard{background:rgba(26,29,39,.92);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;backdrop-filter:blur(10px);transition:all .2s}
   .rcard:hover{border-color:var(--accent)}.rcard.active{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
-  .rcard-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .rcard-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   .rcard-title{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
   .rcard-badge{padding:3px 8px;border-radius:10px;font-size:11px;font-family:'Space Mono',monospace}
-  .rstats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .rsl{font-size:11px;color:var(--text-dim)}.rsv{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+  .rcard-desc{font-size:12px;color:var(--text-dim);margin-bottom:10px}
+  .rstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .rsl{font-size:10px;color:var(--text-dim)}.rsv{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
   .epanel{height:140px;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:none}.epanel.show{display:block}
   .etitle{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px}
   #ecanvas{width:100%;height:90px}
@@ -68,7 +71,6 @@
   .mempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5;pointer-events:none}
   .noti{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;color:var(--text);z-index:1000;transition:transform .3s;box-shadow:0 8px 30px rgba(0,0,0,.4)}
   .noti.show{transform:translateX(-50%) translateY(0)}.noti.error{border-color:var(--red)}.noti.success{border-color:var(--accent)}
-  #dbg{position:fixed;bottom:0;left:0;right:0;height:150px;background:#111;color:#0f0;font:11px/1.4 monospace;padding:8px;overflow-y:auto;z-index:9999;border-top:2px solid #333;display:none}
 </style>
 </head>
 <body>
@@ -77,7 +79,21 @@
     <div class="sidebar-header"><div class="logo">RideGenie <span>智能骑行路线</span></div></div>
     <div class="sidebar-body">
       <div class="form-section"><div class="form-section-title">📍 出发点</div><div style="position:relative"><input class="form-input" id="si" placeholder="搜索地址或点击地图选点" autocomplete="off"><div class="sbox" id="ss"></div></div></div>
-      <div class="form-section"><div class="form-section-title">🛣 目标里程</div><div class="distance-display"><div class="distance-value" id="dd">30</div><div class="distance-unit">km</div></div><input type="range" id="ds" min="10" max="100" step="5" value="30"><div class="range-labels"><span>10km</span><span>50km</span><span>100km</span></div></div>
+
+      <div class="form-section">
+        <div class="form-section-title">🛣 目标里程范围</div>
+        <div class="distance-display">
+          <div class="distance-value" id="dd">25 - 35</div>
+          <div class="distance-unit">km</div>
+        </div>
+        <div class="range-row">
+          <input type="range" id="ds-min" min="5" max="90" step="5" value="25" style="flex:1">
+          <span style="color:var(--text-dim);font-size:12px">~</span>
+          <input type="range" id="ds-max" min="10" max="100" step="5" value="35" style="flex:1">
+        </div>
+        <div class="range-labels"><span>5km</span><span>50km</span><span>100km</span></div>
+      </div>
+
       <div class="form-section"><div class="form-section-title">🏙 骑行区域</div><div class="chip-group" data-name="area"><div class="chip" data-value="urban">市区</div><div class="chip active" data-value="suburban">郊区</div><div class="chip" data-value="any">都行</div></div></div>
       <div class="form-section"><div class="form-section-title">🛤 路面偏好</div><div class="chip-group" data-name="surface"><div class="chip active" data-value="paved">柏油路</div><div class="chip" data-value="greenway">绿道</div><div class="chip" data-value="any">都行</div></div></div>
       <div class="form-section"><div class="form-section-title">🚗 车流偏好</div><div class="chip-group" data-name="traffic"><div class="chip active" data-value="less">尽量少</div><div class="chip" data-value="any">无所谓</div></div></div>
@@ -95,45 +111,49 @@
   </div>
 </div>
 <div class="noti" id="noti"></div>
-<div id="dbg"></div>
-
-<script>
-var D=document.getElementById('dbg');
-function L(m){var d=document.createElement('div');d.textContent=new Date().toLocaleTimeString()+' '+m;D.appendChild(d);D.scrollTop=1e6;console.log('[RG]',m)}
-L('Page loaded, requesting AMap SDK...');
-</script>
 
 <script>
 window._AMapSecurityConfig={securityJsCode:'2c986a8ca80da2a5a9707ffb067d0ff3'};
 </script>
-<script src="https://webapi.amap.com/maps?v=2.0&key=a6d81f0dd00a39595187f335361ae4e7&plugin=AMap.Riding,AMap.Geocoder,AMap.PlaceSearch,AMap.AutoComplete&callback=_amapCb"></script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=a6d81f0dd00a39595187f335361ae4e7&plugin=AMap.Riding,AMap.Geocoder&callback=_amapCb"></script>
 <script>
-window._amapCb=function(){
-  L('_amapCb fired! AMap='+typeof AMap);
-  if(typeof AMap!=='undefined') run();
-  else L('ERROR: AMap is undefined in callback');
-};
-setTimeout(function(){
-  L('Timeout check: AMap='+typeof window.AMap);
-  if(typeof window.AMap!=='undefined'&&!window._started){L('Starting via timeout');run();}
-  else if(typeof window.AMap==='undefined') L('FATAL: AMap never loaded');
-},6000);
+window._amapCb=function(){if(typeof AMap!=='undefined')run()};
+setTimeout(function(){if(typeof window.AMap!=='undefined'&&!window._started)run()},6000);
 
 function run(){
   if(window._started)return;window._started=true;
-  L('run() called');
-  var S={startPoint:null,distance:30,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0};
-  var map,geo,ps,ac,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
+  var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
+  var S={startPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京'};
+  var map,geo,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
+  // Route labels
+  var routeLabels=[
+    {name:'路线 A · 紧凑环线',desc:'更短更直的环形，适合高效骑行'},
+    {name:'路线 B · 宽松环线',desc:'更宽更绕的环形，沿途风景更多'},
+    {name:'路线 C · 探索环线',desc:'往相反方向展开，探索不同区域'}
+  ];
+
+  // REST API
+  function restTips(kw,city){
+    return fetch('https://restapi.amap.com/v3/assistant/inputtips?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&city='+encodeURIComponent(city||S.city)+'&citylimit=true&output=json').then(function(r){return r.json()})
+  }
+  function restNearby(kw,lng,lat,radius){
+    return fetch('https://restapi.amap.com/v5/place/around?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&location='+lng+','+lat+'&radius='+radius+'&page_size=3').then(function(r){return r.json()})
+  }
+
+  // Detect city from IP
+  function detectCity(){
+    fetch('https://restapi.amap.com/v3/ip?key='+WEB_KEY+'&output=json').then(function(r){return r.json()}).then(function(d){
+      if(d.status==='1'&&d.city){S.city=d.city;console.log('City detected:',S.city)}
+    }).catch(function(){});
+  }
 
   function init(){
     map=new AMap.Map('map-container',{zoom:12,center:[116.397428,39.90923],mapStyle:'amap://styles/dark',viewMode:'2D'});
-    L('Map created');
-    geo=new AMap.Geocoder();ps=new AMap.PlaceSearch({pageSize:5});ac=new AMap.AutoComplete({city:'全国'});
-    L('ac='+!!ac+' ps='+!!ps+' geo='+!!geo);
-
+    geo=new AMap.Geocoder();
+    detectCity();
     map.on('click',function(e){
       geo.getAddress([e.lnglat.lng,e.lnglat.lat],function(st,r){
-        if(st==='complete'){S.startPoint={lng:e.lnglat.lng,lat:e.lnglat.lat,name:r.regeocode.formattedAddress};document.getElementById('si').value=S.startPoint.name;asm();noti('已设置出发点','success');}
+        if(st==='complete'){S.startPoint={lng:e.lnglat.lng,lat:e.lnglat.lat,name:r.regeocode.formattedAddress};document.getElementById('si').value=S.startPoint.name;asm();noti('已设置出发点','success')}
       });
     });
   }
@@ -145,71 +165,60 @@ function run(){
     m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
   }
 
-  var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
+  // Distance range sliders
+  var dsMin=document.getElementById('ds-min'),dsMax=document.getElementById('ds-max');
+  function updateDist(){
+    var lo=parseInt(dsMin.value),hi=parseInt(dsMax.value);
+    if(lo>hi-5){if(this===dsMin)dsMin.value=hi-5;else dsMax.value=lo+5;lo=parseInt(dsMin.value);hi=parseInt(dsMax.value)}
+    S.distMin=lo;S.distMax=hi;
+    document.getElementById('dd').textContent=lo+' - '+hi;
+  }
+  dsMin.oninput=updateDist;dsMax.oninput=updateDist;
 
-  // REST API helpers
-  function restTips(kw){
-    return fetch('https://restapi.amap.com/v3/assistant/inputtips?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&output=json')
-      .then(function(r){return r.json()});
-  }
-  function restPlaceSearch(kw){
-    return fetch('https://restapi.amap.com/v5/place/text?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&page_size=5')
-      .then(function(r){return r.json()});
-  }
-  function restNearby(kw,lng,lat,radius){
-    return fetch('https://restapi.amap.com/v5/place/around?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&location='+lng+','+lat+'&radius='+radius+'&page_size=3')
-      .then(function(r){return r.json()});
-  }
-
-  // Start search
+  // Search (city-limited)
   var st;
   document.getElementById('si').addEventListener('input',function(){
     clearTimeout(st);var v=this.value.trim(),c=document.getElementById('ss');
     if(v.length<2){c.classList.remove('show');return;}
+    // Check if user typed a city name pattern (contains Chinese city chars)
+    var searchCity=S.city;
     st=setTimeout(function(){
-      L('search: '+v);
-      restTips(v).then(function(d){
-        L('tips status: '+d.status+' count: '+(d.tips?d.tips.length:0));
+      restTips(v,searchCity).then(function(d){
         if(d.status==='1'&&d.tips){
-          var items=d.tips.filter(function(t){return t.location&&t.location.length>0}).slice(0,5).map(function(t){
-            var ll=t.location.split(',');
-            return{name:t.name,dist:t.district||'',lng:parseFloat(ll[0]),lat:parseFloat(ll[1])};
+          var items=d.tips.filter(function(t){return t.location&&t.location.length>2}).slice(0,6).map(function(t){
+            var ll=t.location.split(',');return{name:t.name,dist:t.district||'',lng:parseFloat(ll[0]),lat:parseFloat(ll[1])};
           });
           showS(c,items);
-        }else{showS(c,[]);}
-      }).catch(function(e){L('search err: '+e.message);showS(c,[]);});
+        }else showS(c,[]);
+      }).catch(function(){showS(c,[])});
     },400);
   });
 
   function showS(c,items){
-    c.innerHTML='';
-    if(!items.length){c.classList.remove('show');return;}
+    c.innerHTML='';if(!items.length){c.classList.remove('show');return}
     items.forEach(function(it){
       var d=document.createElement('div');d.className='si';
       d.innerHTML=it.name+(it.dist?'<div class="ad">'+it.dist+'</div>':'');
-      d.onclick=function(){S.startPoint={lng:it.lng,lat:it.lat,name:it.name};document.getElementById('si').value=it.name;c.classList.remove('show');asm();map.setZoomAndCenter(13,[it.lng,it.lat]);};
+      d.onclick=function(){S.startPoint={lng:it.lng,lat:it.lat,name:it.name};document.getElementById('si').value=it.name;c.classList.remove('show');asm();map.setZoomAndCenter(13,[it.lng,it.lat])};
       c.appendChild(d);
     });
-    c.classList.add('show');L('showing '+items.length+' suggestions');
+    c.classList.add('show');
   }
 
   // POI search
-  var pt;
+  var pt2;
   document.getElementById('pi').addEventListener('input',function(){
-    clearTimeout(pt);var v=this.value.trim(),c=document.getElementById('ps');
-    if(v.length<2){c.classList.remove('show');return;}
-    pt=setTimeout(function(){
-      restTips(v).then(function(d){
-        if(d.status==='1'&&d.tips){
-          c.innerHTML='';
-          d.tips.filter(function(t){return t.location&&t.location.length>0}).slice(0,5).forEach(function(t){
-            var ll=t.location.split(',');
-            var d2=document.createElement('div');d2.className='si';
-            d2.innerHTML=t.name+'<div class="ad">'+(t.district||t.address||'')+'</div>';
-            d2.onclick=function(){S.pois.push({name:t.name,type:'exact',location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])}});rpt();document.getElementById('pi').value='';c.classList.remove('show');};
+    clearTimeout(pt2);var v=this.value.trim(),c=document.getElementById('ps');
+    if(v.length<2){c.classList.remove('show');return}
+    pt2=setTimeout(function(){
+      restTips(v,S.city).then(function(d){
+        if(d.status==='1'&&d.tips){c.innerHTML='';
+          d.tips.filter(function(t){return t.location&&t.location.length>2}).slice(0,5).forEach(function(t){
+            var ll=t.location.split(','),d2=document.createElement('div');d2.className='si';
+            d2.innerHTML=t.name+'<div class="ad">'+(t.district||'')+'</div>';
+            d2.onclick=function(){S.pois.push({name:t.name,type:'exact',location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])}});rpt();document.getElementById('pi').value='';c.classList.remove('show')};
             c.appendChild(d2);
-          });
-          c.classList.add('show');
+          });c.classList.add('show');
         }
       });
     },400);
@@ -220,54 +229,47 @@ function run(){
     if(!e.target.closest('#pi')&&!e.target.closest('#ps'))document.getElementById('ps').classList.remove('show');
   });
 
-  document.getElementById('ds').oninput=function(){S.distance=+this.value;document.getElementById('dd').textContent=S.distance;};
-
   document.querySelectorAll('.chip-group').forEach(function(g){
     g.querySelectorAll('.chip').forEach(function(c){
-      c.onclick=function(){g.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});c.classList.add('active');S[g.dataset.name]=c.dataset.value;};
+      c.onclick=function(){g.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});c.classList.add('active');S[g.dataset.name]=c.dataset.value}
     });
   });
   document.querySelectorAll('.dir-btn').forEach(function(b){
-    b.onclick=function(){document.querySelectorAll('.dir-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');S.direction=b.dataset.value;};
+    b.onclick=function(){document.querySelectorAll('.dir-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');S.direction=b.dataset.value}
   });
   document.querySelectorAll('.qp').forEach(function(c){
     c.onclick=function(){var t=c.dataset.type;c.classList.toggle('sel');
       if(c.classList.contains('sel'))S.pois.push({name:t,type:'category'});
-      else S.pois=S.pois.filter(function(p){return!(p.name===t&&p.type==='category')});
-      rpt();};
+      else S.pois=S.pois.filter(function(p){return!(p.name===t&&p.type==='category')});rpt()}
   });
-
   function rpt(){
     var c=document.getElementById('pt');c.innerHTML='';
-    S.pois.forEach(function(p,i){
-      var t=document.createElement('div');t.className='poi-tag';
-      t.innerHTML=(p.type==='exact'?'📍':'🏷')+' '+p.name+' <span class="rm" data-i="'+i+'">✕</span>';
-      c.appendChild(t);
-    });
-    c.querySelectorAll('.rm').forEach(function(b){
-      b.onclick=function(){var x=+b.dataset.i,rm=S.pois[x];S.pois.splice(x,1);
-        if(rm.type==='category')document.querySelectorAll('.qp').forEach(function(c){if(c.dataset.type===rm.name)c.classList.remove('sel')});
-        rpt();};
-    });
+    S.pois.forEach(function(p,i){var t=document.createElement('div');t.className='poi-tag';t.innerHTML=(p.type==='exact'?'📍':'🏷')+' '+p.name+' <span class="rm" data-i="'+i+'">✕</span>';c.appendChild(t)});
+    c.querySelectorAll('.rm').forEach(function(b){b.onclick=function(){var x=+b.dataset.i,rm=S.pois[x];S.pois.splice(x,1);if(rm.type==='category')document.querySelectorAll('.qp').forEach(function(c){if(c.dataset.type===rm.name)c.classList.remove('sel')});rpt()}});
   }
+  function noti(m,t){var e=document.getElementById('noti');e.textContent=(t==='error'?'⚠ ':'✓ ')+m;e.className='noti '+(t||'');setTimeout(function(){e.classList.add('show')},10);setTimeout(function(){e.classList.remove('show')},3000)}
 
-  function noti(m,t){var e=document.getElementById('noti');e.textContent=(t==='error'?'⚠ ':'✓ ')+m;e.className='noti '+(t||'');setTimeout(function(){e.classList.add('show')},10);setTimeout(function(){e.classList.remove('show')},3000);}
+  // Route generation
+  function gda(d){var a={n:90,ne:45,e:0,se:-45,s:-90,sw:-135,w:180,nw:135};return a[d]!==undefined?a[d]:null}
 
-  function gda(d){var a={n:90,ne:45,e:0,se:-45,s:-90,sw:-135,w:180,nw:135};return a[d]!==undefined?a[d]:null;}
-  function gwp(c,dk,dir){
-    var R=dk/(2*Math.PI)*1.3,n=4,w=[],ba=gda(dir);
+  // Generate waypoints with configurable spread and offset
+  function gwp(c,dk,direction,spread,angleOffset){
+    var R=dk/(2*Math.PI)*1.3,n=4,w=[],ba=gda(direction);
     for(var i=0;i<n;i++){
-      var ang;if(ba!==null)ang=ba-60+(120/(n-1))*i;else ang=(360/n)*i+(Math.random()*30-15);
+      var ang;
+      if(ba!==null) ang=ba-spread/2+(spread/(n-1))*i+angleOffset;
+      else ang=(360/n)*i+angleOffset+(Math.random()*20-10);
       var rad=ang*Math.PI/180,r=R*(.7+Math.random()*.3);
       w.push({lng:c.lng+(r/(111*Math.cos(c.lat*Math.PI/180)))*Math.cos(rad),lat:c.lat+(r/111)*Math.sin(rad)});
     }return w;
   }
+
   function rr(o,d){
     return new Promise(function(res){
       var r=new AMap.Riding({hideMarkers:true,autoFitView:false});
       r.search(new AMap.LngLat(o.lng,o.lat),new AMap.LngLat(d.lng,d.lat),function(s,result){
         try{r.clear()}catch(e){}
-        if(s==='complete'&&result.routes&&result.routes.length)res(result.routes[0]);else{L('ride fail:'+s);res(null);}
+        if(s==='complete'&&result.routes&&result.routes.length)res(result.routes[0]);else res(null);
       });
     });
   }
@@ -283,24 +285,43 @@ function run(){
     var mid=path[Math.floor(path.length/2)],res=[];
     return Promise.all(cats.map(function(cp){
       return restNearby(cp.name,mid.lng,mid.lat,3000).then(function(d){
-        if(d.status==='1'&&d.pois){
-          d.pois.slice(0,2).forEach(function(p){
-            var ll=p.location.split(',');
-            res.push({name:p.name,location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])},type:cp.name});
-          });
-        }
+        if(d.status==='1'&&d.pois)d.pois.slice(0,2).forEach(function(p){var ll=p.location.split(',');res.push({name:p.name,location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])},type:cp.name})});
       });
     })).then(function(){return res});
   }
   function mel(n,sl){var p=[],e=50+Math.random()*30,mv=sl==='flat'?5:sl==='moderate'?15:10;for(var i=0;i<Math.min(n,200);i++){var pr=i/Math.min(n,200);e+=(Math.random()-.5)*2;p.push(Math.max(10,e+Math.sin(pr*Math.PI*3)*mv+Math.sin(pr*Math.PI*7)*mv*.3))}return p}
 
+  // Calorie estimation: ~30 kcal/km base + 8 kcal per 10m climb
+  function calcCal(distM,elevData){
+    var km=distM/1000,climb=0;
+    for(var i=1;i<elevData.length;i++)if(elevData[i]>elevData[i-1])climb+=elevData[i]-elevData[i-1];
+    return Math.round(km*30+climb*0.8);
+  }
+
+  // Route configs: each route uses different spread and angle offset to create variety
+  var routeConfigs=[
+    {spread:90,offset:0,radiusMult:0.9},    // Compact: tighter, less spread
+    {spread:150,offset:0,radiusMult:1.2},    // Scenic: wider, more spread
+    {spread:120,offset:180,radiusMult:1.0}   // Explore: opposite direction
+  ];
+
   async function gor(idx){
-    var c=S.startPoint,wps=gwp(c,S.distance,S.direction);
+    var c=S.startPoint;
+    var cfg=routeConfigs[idx]||routeConfigs[0];
+    // Use a distance within the range
+    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.8:0.5);
+    var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset);
+    // Scale by radiusMult
+    wps=wps.map(function(w){
+      var dlng=(w.lng-c.lng)*cfg.radiusMult,dlat=(w.lat-c.lat)*cfg.radiusMult;
+      return{lng:c.lng+dlng,lat:c.lat+dlat};
+    });
     S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
     var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0;
-    for(var i=0;i<pts.length-1;i++){L('seg '+i);var r=await rr(pts[i],pts[i+1]);if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}}
+    for(var i=0;i<pts.length-1;i++){var r=await rr(pts[i],pts[i+1]);if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}}
     var fpoi=await scpoi(fp);
-    return{index:idx,path:fp,distance:td,time:tt,elevation:mel(fp.length,S.slope),pois:S.pois.filter(function(p){return p.type==='exact'}).map(function(p){return{name:p.name,location:p.location,type:'指定'}}).concat(fpoi)};
+    var elev=mel(fp.length,S.slope);
+    return{index:idx,path:fp,distance:td,time:tt,elevation:elev,calories:calcCal(td,elev),pois:S.pois.filter(function(p){return p.type==='exact'}).map(function(p){return{name:p.name,location:p.location,type:'指定'}}).concat(fpoi)};
   }
 
   async function gen(){
@@ -309,11 +330,11 @@ function run(){
     rpl.forEach(function(p){map.remove(p)});rpl=[];mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
     try{
       var routes=[];
-      for(var i=0;i<2;i++){L('gen route '+i);var r=await gor(i);if(r&&r.path.length)routes.push(r)}
+      for(var i=0;i<3;i++){var r=await gor(i);if(r&&r.path.length)routes.push(r)}
       if(!routes.length){noti('路线规划失败','error');return}
       S.routes=routes;S.activeRoute=0;rrs();rrcs();sel(0);
       document.getElementById('rp').classList.add('show');document.getElementById('ep').classList.add('show');
-    }catch(e){L('ERR:'+e.message);noti('出错了','error')}
+    }catch(e){noti('出错了','error');console.error(e)}
     finally{document.getElementById('gb').disabled=false;document.getElementById('lov').classList.remove('show')}
   }
 
@@ -338,9 +359,19 @@ function run(){
     var panel=document.getElementById('rp');panel.innerHTML='';
     S.routes.forEach(function(r,i){
       var dk=(r.distance/1000).toFixed(1),tm=Math.round(r.time/60),h=Math.floor(tm/60),m=tm%60,ts=h?h+'h '+m+'m':m+'min';
-      var cl=0;for(var j=1;j<r.elevation.length;j++)if(r.elevation[j]>r.elevation[j-1])cl+=r.elevation[j]-r.elevation[j-1];
+      var climb=0;for(var j=1;j<r.elevation.length;j++)if(r.elevation[j]>r.elevation[j-1])climb+=r.elevation[j]-r.elevation[j-1];
+      var lb=routeLabels[i]||routeLabels[0];
       var cd=document.createElement('div');cd.className='rcard'+(i===S.activeRoute?' active':'');
-      cd.innerHTML='<div class="rcard-head"><div class="rcard-title" style="color:'+rc[i]+'">路线 '+['A','B','C'][i]+'</div><div class="rcard-badge" style="background:'+rc[i]+'20;color:'+rc[i]+'">'+dk+' km</div></div><div class="rstats"><div><div class="rsl">预计时间</div><div class="rsv">'+ts+'</div></div><div><div class="rsl">总爬升</div><div class="rsv">+'+cl.toFixed(0)+'m</div></div><div><div class="rsl">最高海拔</div><div class="rsv">'+Math.max.apply(null,r.elevation).toFixed(0)+'m</div></div><div><div class="rsl">沿途POI</div><div class="rsv">'+r.pois.length+'个</div></div></div>';
+      cd.innerHTML='<div class="rcard-head"><div class="rcard-title" style="color:'+rc[i]+'">'+lb.name+'</div><div class="rcard-badge" style="background:'+rc[i]+'20;color:'+rc[i]+'">'+dk+' km</div></div>'+
+        '<div class="rcard-desc">'+lb.desc+'</div>'+
+        '<div class="rstats">'+
+        '<div><div class="rsl">预计时间</div><div class="rsv">'+ts+'</div></div>'+
+        '<div><div class="rsl">总爬升</div><div class="rsv">+'+climb.toFixed(0)+'m</div></div>'+
+        '<div><div class="rsl">🔥 卡路里</div><div class="rsv">'+r.calories+' kcal</div></div>'+
+        '<div><div class="rsl">最高海拔</div><div class="rsv">'+Math.max.apply(null,r.elevation).toFixed(0)+'m</div></div>'+
+        '<div><div class="rsl">沿途POI</div><div class="rsv">'+r.pois.length+'个</div></div>'+
+        '<div><div class="rsl">类型</div><div class="rsv" style="font-size:11px">'+['紧凑','宽松','探索'][i]+'</div></div>'+
+        '</div>';
       cd.onclick=function(){sel(i)};panel.appendChild(cd);
     });
   }
@@ -354,7 +385,8 @@ function run(){
     var g=cx.createLinearGradient(0,0,0,h),co=rc[r.index]||'#4ade80';g.addColorStop(0,co+'40');g.addColorStop(1,co+'05');
     cx.beginPath();cx.moveTo(0,h);d.forEach(function(v,i){cx.lineTo(i/(d.length-1)*w,h-(v-mn)/rg*(h-10))});cx.lineTo(w,h);cx.closePath();cx.fillStyle=g;cx.fill();
     cx.beginPath();d.forEach(function(v,i){var x=i/(d.length-1)*w,y=h-(v-mn)/rg*(h-10);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.strokeStyle=co;cx.lineWidth=2;cx.stroke();
-    cx.fillStyle='#8b8fa3';cx.font='10px "Space Mono",monospace';cx.fillText(mx.toFixed(0)+'m',4,14);cx.fillText(mn.toFixed(0)+'m',4,h-4);cx.fillText((r.distance/1000).toFixed(1)+'km',w-45,h-4);
+    cx.fillStyle='#8b8fa3';cx.font='10px "Space Mono",monospace';
+    cx.fillText(mx.toFixed(0)+'m',4,14);cx.fillText(mn.toFixed(0)+'m',4,h-4);cx.fillText((r.distance/1000).toFixed(1)+'km',w-45,h-4);
   }
 
   document.getElementById('gb').onclick=gen;
