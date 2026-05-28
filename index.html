@@ -301,7 +301,7 @@ function run(){
   // So waypoint distance from center ≈ N/5 / sqrt(2) ≈ N/7 km
   function gwp(c,dk,direction,spread,angleOffset,scaleFactor){
     var sf=scaleFactor||1.0;
-    var R=(dk/7)*sf; // radius in km
+    var R=(dk/5)*sf; // radius in km - city roads add ~20% over straight line
     var n=4,w=[],ba=gda(direction);
     for(var i=0;i<n;i++){
       var ang;
