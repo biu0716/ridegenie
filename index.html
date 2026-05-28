@@ -58,6 +58,8 @@
   .rcard-title{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
   .rcard-badge{padding:3px 8px;border-radius:10px;font-size:11px;font-family:'Space Mono',monospace}
   .rcard-desc{font-size:12px;color:var(--text-dim);margin-bottom:10px}
+  .nav-btn{width:100%;margin-top:12px;padding:10px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+  .nav-btn:hover{background:var(--accent-dim)}
   .rstats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .rsl{font-size:10px;color:var(--text-dim)}.rsv{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
   .epanel{height:140px;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:none}.epanel.show{display:block}
@@ -392,23 +394,12 @@ function run(){
       if(r){
         td+=r.distance;tt+=r.time;fp=fp.concat(ep(r));
       }else{
-        // Straight-line fallback: keep path continuous
+        // No straight-line fallback - mark this segment as failed
         fc++;
-        var segDist=haversine(pts[i],pts[i+1]);
-        td+=segDist;
-        tt+=segDist/(15000/3600); // assume 15km/h for straight segments
-        fp.push({lng:pts[i].lng,lat:pts[i].lat});
-        fp.push({lng:pts[i+1].lng,lat:pts[i+1].lat});
       }
     }
-    // Guarantee closure: last point must equal start
-    if(fp.length>0){
-      var last=fp[fp.length-1];
-      if(haversine(last,c)>50){ // more than 50m from start
-        fp.push({lng:c.lng,lat:c.lat});
-        td+=haversine(last,c);
-      }
-    }
+    // Only close if the route is mostly intact (we have a real path)
+    // The last segment (wp4→start) handles closure naturally via routing
     return{path:fp,distance:td,time:tt,failCount:fc};
   }
 
@@ -441,20 +432,20 @@ function run(){
       var radiusKm=targetDist/5;
       var bestResult=null,bestDev=999;
 
-      for(var attempt=0;attempt<5;attempt++){
+      for(var attempt=0;attempt<6;attempt++){
         var result=await buildLoopR(c,radiusKm,cfg);
-        if(result.distance===0){
-          radiusKm=radiusKm*0.7;
+        // Reject routes with failed segments (would have gaps/straight lines)
+        if(result.distance===0||result.failCount>0){
+          // Slightly perturb radius and retry
+          radiusKm=radiusKm*(result.distance===0?0.7:0.92);
+          if(!bestResult&&result.distance>0&&result.failCount<=1)bestResult=result;
           continue;
         }
         var deviation=result.distance/targetDistM;
         var devFromOne=Math.abs(deviation-1);
-        // Keep the best result that doesn't have too many failed segments
-        if(devFromOne<bestDev&&result.failCount<=2){bestDev=devFromOne;bestResult=result}
-        else if(!bestResult){bestResult=result}
-        // Within ±15% and mostly real roads → good enough
-        if(deviation>=0.85&&deviation<=1.15&&result.failCount<=1) break;
-        // Adjust radius by inverse of deviation
+        if(devFromOne<bestDev){bestDev=devFromOne;bestResult=result}
+        // Within ±15% and fully routed → good enough
+        if(deviation>=0.85&&deviation<=1.15) break;
         radiusKm=radiusKm/deviation;
         if(radiusKm<0.5)radiusKm=0.5;
         if(radiusKm>30)radiusKm=30;
@@ -536,9 +527,26 @@ function run(){
         '<div><div class="rsl">🔥 卡路里</div><div class="rsv">'+r.calories+' kcal</div></div>'+
         '<div><div class="rsl">坡度</div><div class="rsv" style="font-size:12px">'+elevLabel(r.elevation)+'</div></div>'+
         '<div><div class="rsl">沿途歇脚点</div><div class="rsv">'+r.pois.length+'个</div></div>'+
-        '</div>';
-      cd.onclick=function(){sel(i)};panel.appendChild(cd);
+        '</div>'+
+        (i===S.activeRoute?'<button class="nav-btn" data-nav="'+i+'">🧭 在高德地图中导航</button>':'');
+      cd.onclick=function(e){if(!e.target.closest('.nav-btn'))sel(i)};panel.appendChild(cd);
     });
+    // Bind nav buttons
+    panel.querySelectorAll('.nav-btn').forEach(function(btn){
+      btn.onclick=function(e){e.stopPropagation();openNav(S.routes[parseInt(btn.dataset.nav)])};
+    });
+  }
+
+  function openNav(route){
+    if(!route||!route.path.length){noti('路线无效','error');return}
+    var c=S.startPoint;
+    var dest=S.endPoint||c; // loop returns to start
+    // AMap URI: navigate with riding mode. Pick a midpoint as waypoint hint.
+    var mid=route.path[Math.floor(route.path.length/2)];
+    // Use AMap web URI for riding navigation
+    var url='https://uri.amap.com/navigation?from='+c.lng+','+c.lat+',起点&to='+dest.lng+','+dest.lat+',终点&mode=ride&policy=1&src=ridegenie&coordinate=gaode&callnative=1';
+    window.open(url,'_blank');
+    noti('正在打开高德地图导航','success');
   }
   function sel(i){S.activeRoute=i;rrs();rrcs();rpm(S.routes[i]);de(S.routes[i]);asm()}
   function de(r){
