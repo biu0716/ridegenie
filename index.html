@@ -302,39 +302,39 @@ function run(){
     return Math.round(km*22+climb*0.5);
   }
 
-  // Route configs: each route uses different spread and angle offset to create variety
+  // Route configs: differentiate by direction offset and slight radius variation
   var routeConfigs=[
-    {spread:90,offset:0,radiusMult:0.9},    // Compact: tighter, less spread
-    {spread:150,offset:0,radiusMult:1.2},    // Scenic: wider, more spread
-    {spread:120,offset:180,radiusMult:1.0}   // Explore: opposite direction
+    {spread:90,offset:0,radiusMult:0.85},     // Compact: tight arc in preferred direction
+    {spread:120,offset:30,radiusMult:1.0},     // Scenic: slightly wider, shifted 30°
+    {spread:100,offset:180,radiusMult:0.9}     // Explore: opposite direction
   ];
 
   async function gor(idx){
     var c=S.startPoint;
     var cfg=routeConfigs[idx]||routeConfigs[0];
-    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.8:0.5);
+    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.7:0.5);
     var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset);
     wps=wps.map(function(w){
       var dlng=(w.lng-c.lng)*cfg.radiusMult,dlat=(w.lat-c.lat)*cfg.radiusMult;
       return{lng:c.lng+dlng,lat:c.lat+dlat};
     });
     S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
-    var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0;
+    var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0,failCount=0;
     for(var i=0;i<pts.length-1;i++){
       var r=await rr(pts[i],pts[i+1]);
       if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}
-      else{
-        // Fallback: if riding route fails for this segment, insert straight line
-        fp.push({lng:pts[i].lng,lat:pts[i].lat});
-        fp.push({lng:pts[i+1].lng,lat:pts[i+1].lat});
-      }
+      else{failCount++}
     }
-    // Ensure closure: if last point is far from start, add start point
+    // If more than half segments failed, this route is invalid
+    if(failCount>pts.length/2) return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
+    // Ensure closure
     if(fp.length>0){
       var last=fp[fp.length-1];
-      var dLat=Math.abs(last.lat-c.lat),dLng=Math.abs(last.lng-c.lng);
-      if(dLat>0.001||dLng>0.001){
-        fp.push({lng:c.lng,lat:c.lat});
+      if(Math.abs(last.lat-c.lat)>0.001||Math.abs(last.lng-c.lng)>0.001){
+        // Try one more riding route back to start
+        var rBack=await rr(last,c);
+        if(rBack){td+=rBack.distance;tt+=rBack.time;fp=fp.concat(ep(rBack))}
+        else{fp.push({lng:c.lng,lat:c.lat})}
       }
     }
     var fpoi=await scpoi(fp);
