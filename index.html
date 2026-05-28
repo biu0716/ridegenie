@@ -156,6 +156,9 @@ function run(){
 
   function init(){
     map=new AMap.Map('map-container',{zoom:12,center:[116.397428,39.90923],mapStyle:'amap://styles/dark',viewMode:'2D'});
+    // Real-time traffic layer
+    var trafficLayer=new AMap.TileLayer.Traffic({zIndex:10,zooms:[7,22]});
+    trafficLayer.setMap(map);
     geo=new AMap.Geocoder();
     detectCity();
     map.on('click',function(e){
@@ -440,7 +443,15 @@ function run(){
     rpl.forEach(function(p){map.remove(p)});rpl=[];mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
     try{
       var routes=[];
-      for(var i=0;i<3;i++){var r=await gor(i);if(r&&r.path.length>10&&r.distance>500)routes.push(r)}
+      for(var i=0;i<3;i++){
+        var r=await gor(i);
+        if(!r||r.path.length<10||r.distance<500) continue;
+        var km=r.distance/1000;
+        // Only show routes within a reasonable range of user's setting
+        // Allow 30% over the max (roads are longer than straight lines) but don't go below 70% of min
+        if(km<S.distMin*0.7) continue;
+        routes.push(r);
+      }
       if(!routes.length){noti('路线规划失败','error');return}
       S.routes=routes;S.activeRoute=0;rrs();rrcs();sel(0);
       document.getElementById('rp').classList.add('show');document.getElementById('ep').classList.add('show');
