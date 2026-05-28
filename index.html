@@ -4,1517 +4,346 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RideGenie — 智能骑行路线生成器</title>
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap');
-
-  :root {
-    --bg: #0f1117;
-    --surface: #1a1d27;
-    --surface2: #242836;
-    --border: #2e3345;
-    --text: #e4e6ed;
-    --text-dim: #8b8fa3;
-    --accent: #4ade80;
-    --accent-dim: #22c55e;
-    --accent-glow: rgba(74, 222, 128, 0.15);
-    --orange: #fb923c;
-    --blue: #60a5fa;
-    --red: #f87171;
-    --font-display: 'Space Mono', monospace;
-    --font-body: 'DM Sans', sans-serif;
-    --radius: 12px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: var(--font-body);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  /* Layout */
-  .app {
-    display: flex;
-    height: 100vh;
-  }
-
-  .sidebar {
-    width: 380px;
-    min-width: 380px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .sidebar-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo {
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: -0.5px;
-  }
-
-  .logo span {
-    color: var(--text-dim);
-    font-weight: 400;
-    font-size: 13px;
-    margin-left: 8px;
-    letter-spacing: 0;
-  }
-
-  .sidebar-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px 24px;
-  }
-
-  .sidebar-body::-webkit-scrollbar { width: 4px; }
-  .sidebar-body::-webkit-scrollbar-track { background: transparent; }
-  .sidebar-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
-  .main {
-    flex: 1;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #map-container {
-    flex: 1;
-    position: relative;
-  }
-
-  /* Form styles */
-  .form-section {
-    margin-bottom: 20px;
-  }
-
-  .form-section-title {
-    font-family: var(--font-display);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: var(--text-dim);
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .form-section-title i {
-    color: var(--accent);
-    font-size: 12px;
-  }
-
-  .form-group {
-    margin-bottom: 14px;
-  }
-
-  .form-label {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    display: block;
-    font-weight: 500;
-  }
-
-  .form-input {
-    width: 100%;
-    padding: 10px 14px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 14px;
-    font-family: var(--font-body);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    outline: none;
-  }
-
-  .form-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
-  }
-
-  .form-input::placeholder {
-    color: var(--text-dim);
-    opacity: 0.6;
-  }
-
-  /* Distance slider */
-  .distance-display {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    margin-bottom: 8px;
-  }
-
-  .distance-value {
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 700;
-    color: var(--accent);
-    line-height: 1;
-  }
-
-  .distance-unit {
-    font-size: 14px;
-    color: var(--text-dim);
-  }
-
-  .range-slider {
-    width: 100%;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 6px;
-    background: var(--surface2);
-    border-radius: 3px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  .range-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-    box-shadow: 0 0 10px var(--accent-glow);
-    transition: transform 0.15s;
-  }
-
-  .range-slider::-webkit-slider-thumb:hover {
-    transform: scale(1.2);
-  }
-
-  .range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    font-family: var(--font-display);
-  }
-
-  /* Chip selectors */
-  .chip-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .chip {
-    padding: 7px 14px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    font-size: 13px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-    font-family: var(--font-body);
-  }
-
-  .chip:hover {
-    border-color: var(--accent);
-    color: var(--text);
-  }
-
-  .chip.active {
-    background: var(--accent-glow);
-    border-color: var(--accent);
-    color: var(--accent);
-    font-weight: 500;
-  }
-
-  .chip-multi.active {
-    background: var(--accent-glow);
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  /* Direction selector */
-  .direction-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    width: 140px;
-    margin: 0 auto;
-  }
-
-  .dir-btn {
-    aspect-ratio: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text-dim);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: var(--font-display);
-  }
-
-  .dir-btn:hover { border-color: var(--accent); color: var(--text); }
-  .dir-btn.active { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); font-weight: 700; }
-  .dir-btn.center { background: transparent; border: 1px dashed var(--border); font-size: 10px; }
-  .dir-btn.center.active { border-style: solid; }
-
-  /* POI input */
-  .poi-input-group {
-    position: relative;
-  }
-
-  .poi-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-
-  .poi-tag {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: rgba(96, 165, 250, 0.12);
-    border: 1px solid rgba(96, 165, 250, 0.3);
-    border-radius: 14px;
-    font-size: 12px;
-    color: var(--blue);
-  }
-
-  .poi-tag .remove {
-    cursor: pointer;
-    opacity: 0.6;
-    font-size: 10px;
-  }
-
-  .poi-tag .remove:hover { opacity: 1; }
-
-  .poi-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-top: 4px;
-    max-height: 180px;
-    overflow-y: auto;
-    z-index: 100;
-    display: none;
-  }
-
-  .poi-suggestions.show { display: block; }
-
-  .poi-suggestion-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    font-size: 13px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .poi-suggestion-item:last-child { border-bottom: none; }
-  .poi-suggestion-item:hover { background: var(--surface2); }
-  .poi-suggestion-item .name { color: var(--text); }
-  .poi-suggestion-item .addr { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
-
-  /* Quick POI chips */
-  .quick-poi {
-    display: flex;
-    gap: 6px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-  }
-
-  .quick-poi-chip {
-    padding: 5px 12px;
-    background: transparent;
-    border: 1px dashed var(--border);
-    border-radius: 14px;
-    font-size: 12px;
-    color: var(--text-dim);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .quick-poi-chip:hover {
-    border-color: var(--blue);
-    color: var(--blue);
-    border-style: solid;
-  }
-
-  .quick-poi-chip.selected {
-    background: rgba(96, 165, 250, 0.12);
-    border: 1px solid rgba(96, 165, 250, 0.3);
-    color: var(--blue);
-    border-style: solid;
-  }
-
-  /* Generate button */
-  .generate-btn {
-    width: 100%;
-    padding: 14px;
-    background: var(--accent);
-    color: var(--bg);
-    border: none;
-    border-radius: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    font-family: var(--font-body);
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 8px;
-  }
-
-  .generate-btn:hover {
-    background: var(--accent-dim);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 20px var(--accent-glow);
-  }
-
-  .generate-btn:active { transform: translateY(0); }
-
-  .generate-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
-
-  .generate-btn i { font-size: 14px; }
-
-  /* Route cards panel */
-  .route-panel {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    width: 320px;
-    z-index: 10;
-    display: none;
-  }
-
-  .route-panel.show { display: block; }
-
-  .route-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-    backdrop-filter: blur(10px);
-  }
-
-  .route-card:hover { border-color: var(--accent); }
-  .route-card.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
-
-  .route-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .route-card-title {
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--accent);
-  }
-
-  .route-card-badge {
-    padding: 3px 8px;
-    background: var(--accent-glow);
-    border-radius: 10px;
-    font-size: 11px;
-    color: var(--accent);
-    font-family: var(--font-display);
-  }
-
-  .route-stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-
-  .route-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .route-stat-label {
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  .route-stat-value {
-    font-family: var(--font-display);
-    font-size: 14px;
-    font-weight: 700;
-  }
-
-  /* Elevation chart */
-  .elevation-panel {
-    height: 140px;
-    background: var(--surface);
-    border-top: 1px solid var(--border);
-    padding: 12px 20px;
-    display: none;
-  }
-
-  .elevation-panel.show { display: block; }
-
-  .elevation-title {
-    font-family: var(--font-display);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-  }
-
-  .elevation-canvas {
-    width: 100%;
-    height: 90px;
-  }
-
-  /* Loading overlay */
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 17, 23, 0.85);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .loading-overlay.show { display: flex; }
-
-  .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-text {
-    color: var(--text-dim);
-    font-size: 14px;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes pulse { 50% { opacity: 0.5; } }
-
-  /* POI markers on map */
-  .poi-marker-label {
-    background: var(--surface);
-    border: 1px solid var(--blue);
-    border-radius: 8px;
-    padding: 4px 8px;
-    font-size: 11px;
-    color: var(--blue);
-    white-space: nowrap;
-    font-family: 'DM Sans', sans-serif;
-  }
-
-  /* Start marker */
-  .start-marker {
-    width: 28px;
-    height: 28px;
-    background: var(--accent);
-    border-radius: 50%;
-    border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Empty state */
-  .map-empty {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 5;
-    pointer-events: none;
-  }
-
-  .map-empty-icon {
-    font-size: 48px;
-    color: var(--border);
-    margin-bottom: 16px;
-  }
-
-  .map-empty-text {
-    color: var(--text-dim);
-    font-size: 15px;
-    text-align: center;
-    line-height: 1.6;
-  }
-
-  /* Notification */
-  .notification {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-100px);
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 20px;
-    font-size: 14px;
-    color: var(--text);
-    z-index: 1000;
-    transition: transform 0.3s ease;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-  }
-
-  .notification.show { transform: translateX(-50%) translateY(0); }
-  .notification.error { border-color: var(--red); }
-  .notification.error::before { content: '⚠ '; color: var(--red); }
-  .notification.success { border-color: var(--accent); }
-  .notification.success::before { content: '✓ '; color: var(--accent); }
-
-  /* Geocoder suggestions */
-  .geo-suggestions {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-top: 4px;
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 100;
-    display: none;
-  }
-
-  .geo-suggestions.show { display: block; }
-
-  .geo-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    font-size: 13px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .geo-item:last-child { border-bottom: none; }
-  .geo-item:hover { background: var(--surface2); }
-
-  .sidebar-footer {
-    padding: 16px 24px;
-    border-top: 1px solid var(--border);
-  }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
+  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#242836;--border:#2e3345;--text:#e4e6ed;--text-dim:#8b8fa3;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.15);--blue:#60a5fa;--red:#f87171}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .app{display:flex;height:100vh}
+  .sidebar{width:380px;min-width:380px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column}
+  .sidebar-header{padding:20px 24px;border-bottom:1px solid var(--border)}
+  .logo{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:var(--accent)}.logo span{color:var(--text-dim);font-weight:400;font-size:13px;margin-left:8px}
+  .sidebar-body{flex:1;overflow-y:auto;padding:20px 24px}
+  .sidebar-body::-webkit-scrollbar{width:4px}.sidebar-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+  .main{flex:1;position:relative;display:flex;flex-direction:column}
+  #map-container{flex:1}
+  .form-section{margin-bottom:20px}
+  .form-section-title{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-dim);margin-bottom:12px}
+  .form-input{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:inherit;outline:none}
+  .form-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+  .form-input::placeholder{color:var(--text-dim);opacity:.6}
+  .distance-display{display:flex;align-items:baseline;gap:4px;margin-bottom:8px}
+  .distance-value{font-family:'Space Mono',monospace;font-size:32px;font-weight:700;color:var(--accent);line-height:1}
+  .distance-unit{font-size:14px;color:var(--text-dim)}
+  input[type=range]{width:100%;-webkit-appearance:none;height:6px;background:var(--surface2);border-radius:3px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);cursor:pointer}
+  .range-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-top:4px;font-family:'Space Mono',monospace}
+  .chip-group{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;color:var(--text-dim);cursor:pointer;user-select:none;transition:all .2s}
+  .chip:hover{border-color:var(--accent);color:var(--text)}.chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);font-weight:500}
+  .direction-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:140px;margin:0 auto}
+  .dir-btn{aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;font-family:'Space Mono',monospace;transition:all .2s}
+  .dir-btn:hover{border-color:var(--accent)}.dir-btn.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);font-weight:700}
+  .dir-btn.center{background:transparent;border-style:dashed}.dir-btn.center.active{border-style:solid}
+  .poi-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .poi-tag{display:flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);border-radius:14px;font-size:12px;color:var(--blue)}
+  .poi-tag .rm{cursor:pointer;opacity:.6;font-size:10px}.poi-tag .rm:hover{opacity:1}
+  .quick-poi{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .qp{padding:5px 12px;background:transparent;border:1px dashed var(--border);border-radius:14px;font-size:12px;color:var(--text-dim);cursor:pointer;transition:all .2s}
+  .qp:hover{border-color:var(--blue);color:var(--blue);border-style:solid}.qp.sel{background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.3);color:var(--blue)}
+  .sbox{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:200px;overflow-y:auto;z-index:100;display:none}
+  .sbox.show{display:block}
+  .si{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);color:var(--text);transition:background .15s}
+  .si:last-child{border-bottom:none}.si:hover{background:var(--surface2)}.si .ad{color:var(--text-dim);font-size:11px;margin-top:2px}
+  .gen-btn{width:100%;padding:14px;background:var(--accent);color:var(--bg);border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s}
+  .gen-btn:hover{background:var(--accent-dim);transform:translateY(-1px);box-shadow:0 4px 20px var(--accent-glow)}
+  .gen-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .sidebar-footer{padding:16px 24px;border-top:1px solid var(--border)}
+  .rpanel{position:absolute;top:16px;right:16px;width:320px;z-index:10;display:none}.rpanel.show{display:block}
+  .rcard{background:rgba(26,29,39,.92);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;backdrop-filter:blur(10px);transition:all .2s}
+  .rcard:hover{border-color:var(--accent)}.rcard.active{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
+  .rcard-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .rcard-title{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+  .rcard-badge{padding:3px 8px;border-radius:10px;font-size:11px;font-family:'Space Mono',monospace}
+  .rstats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rsl{font-size:11px;color:var(--text-dim)}.rsv{font-family:'Space Mono',monospace;font-size:14px;font-weight:700}
+  .epanel{height:140px;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:none}.epanel.show{display:block}
+  .etitle{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:8px}
+  #ecanvas{width:100%;height:90px}
+  .lov{position:absolute;inset:0;background:rgba(15,17,23,.85);display:none;align-items:center;justify-content:center;z-index:50;flex-direction:column;gap:16px}
+  .lov.show{display:flex}
+  .lspin{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .ltxt{color:var(--text-dim);font-size:14px;animation:pu 1.5s ease-in-out infinite}@keyframes pu{50%{opacity:.5}}
+  .mempty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:5;pointer-events:none}
+  .noti{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:14px;color:var(--text);z-index:1000;transition:transform .3s;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  .noti.show{transform:translateX(-50%) translateY(0)}.noti.error{border-color:var(--red)}.noti.success{border-color:var(--accent)}
+  #dbg{position:fixed;bottom:0;left:0;right:0;height:150px;background:#111;color:#0f0;font:11px/1.4 monospace;padding:8px;overflow-y:auto;z-index:9999;border-top:2px solid #333}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- Sidebar -->
   <div class="sidebar">
-    <div class="sidebar-header">
-      <div class="logo">RideGenie <span>智能骑行路线</span></div>
-    </div>
-
+    <div class="sidebar-header"><div class="logo">RideGenie <span>智能骑行路线</span></div></div>
     <div class="sidebar-body">
-      <!-- Start point -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-location-dot"></i> 出发点</div>
-        <div class="form-group" style="position:relative;">
-          <input type="text" class="form-input" id="start-input" placeholder="搜索地址或点击地图选点" autocomplete="off">
-          <div class="geo-suggestions" id="start-suggestions"></div>
-        </div>
-      </div>
-
-      <!-- Distance -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-route"></i> 目标里程</div>
-        <div class="distance-display">
-          <div class="distance-value" id="distance-display">30</div>
-          <div class="distance-unit">km</div>
-        </div>
-        <input type="range" class="range-slider" id="distance-slider" min="10" max="100" step="5" value="30">
-        <div class="range-labels"><span>10km</span><span>50km</span><span>100km</span></div>
-      </div>
-
-      <!-- Area -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-city"></i> 骑行区域</div>
-        <div class="chip-group" data-name="area">
-          <div class="chip" data-value="urban">市区</div>
-          <div class="chip active" data-value="suburban">郊区</div>
-          <div class="chip" data-value="any">都行</div>
-        </div>
-      </div>
-
-      <!-- Surface -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-road"></i> 路面偏好</div>
-        <div class="chip-group multi" data-name="surface">
-          <div class="chip chip-multi active" data-value="paved">柏油路</div>
-          <div class="chip chip-multi" data-value="greenway">绿道</div>
-          <div class="chip chip-multi" data-value="any">都行</div>
-        </div>
-      </div>
-
-      <!-- Traffic -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-car"></i> 车流偏好</div>
-        <div class="chip-group" data-name="traffic">
-          <div class="chip active" data-value="less">尽量少</div>
-          <div class="chip" data-value="any">无所谓</div>
-        </div>
-      </div>
-
-      <!-- Slope -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-mountain"></i> 坡度偏好</div>
-        <div class="chip-group" data-name="slope">
-          <div class="chip active" data-value="flat">平路为主</div>
-          <div class="chip" data-value="moderate">适当爬坡</div>
-          <div class="chip" data-value="any">无所谓</div>
-        </div>
-      </div>
-
-      <!-- Direction -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-compass"></i> 方向偏好</div>
-        <div class="direction-grid">
-          <div class="dir-btn" data-value="nw">↖</div>
-          <div class="dir-btn" data-value="n">北</div>
-          <div class="dir-btn" data-value="ne">↗</div>
-          <div class="dir-btn" data-value="w">西</div>
-          <div class="dir-btn center active" data-value="any">随意</div>
-          <div class="dir-btn" data-value="e">东</div>
-          <div class="dir-btn" data-value="sw">↙</div>
-          <div class="dir-btn" data-value="s">南</div>
-          <div class="dir-btn" data-value="se">↘</div>
-        </div>
-      </div>
-
-      <!-- POI -->
-      <div class="form-section">
-        <div class="form-section-title"><i class="fa-solid fa-mug-hot"></i> 途经目的地</div>
-        <div class="poi-input-group">
-          <input type="text" class="form-input" id="poi-input" placeholder="搜索具体店名或输入品类" autocomplete="off">
-          <div class="poi-suggestions" id="poi-suggestions"></div>
-        </div>
-        <div class="quick-poi">
-          <div class="quick-poi-chip" data-type="咖啡店">☕ 咖啡店</div>
-          <div class="quick-poi-chip" data-type="便利店">🏪 便利店</div>
-          <div class="quick-poi-chip" data-type="公园">🌳 公园</div>
-          <div class="quick-poi-chip" data-type="餐厅">🍜 餐厅</div>
-        </div>
-        <div class="poi-tags" id="poi-tags"></div>
-      </div>
+      <div class="form-section"><div class="form-section-title">📍 出发点</div><div style="position:relative"><input class="form-input" id="si" placeholder="搜索地址或点击地图选点" autocomplete="off"><div class="sbox" id="ss"></div></div></div>
+      <div class="form-section"><div class="form-section-title">🛣 目标里程</div><div class="distance-display"><div class="distance-value" id="dd">30</div><div class="distance-unit">km</div></div><input type="range" id="ds" min="10" max="100" step="5" value="30"><div class="range-labels"><span>10km</span><span>50km</span><span>100km</span></div></div>
+      <div class="form-section"><div class="form-section-title">🏙 骑行区域</div><div class="chip-group" data-name="area"><div class="chip" data-value="urban">市区</div><div class="chip active" data-value="suburban">郊区</div><div class="chip" data-value="any">都行</div></div></div>
+      <div class="form-section"><div class="form-section-title">🛤 路面偏好</div><div class="chip-group" data-name="surface"><div class="chip active" data-value="paved">柏油路</div><div class="chip" data-value="greenway">绿道</div><div class="chip" data-value="any">都行</div></div></div>
+      <div class="form-section"><div class="form-section-title">🚗 车流偏好</div><div class="chip-group" data-name="traffic"><div class="chip active" data-value="less">尽量少</div><div class="chip" data-value="any">无所谓</div></div></div>
+      <div class="form-section"><div class="form-section-title">⛰ 坡度偏好</div><div class="chip-group" data-name="slope"><div class="chip active" data-value="flat">平路为主</div><div class="chip" data-value="moderate">适当爬坡</div><div class="chip" data-value="any">无所谓</div></div></div>
+      <div class="form-section"><div class="form-section-title">🧭 方向偏好</div><div class="direction-grid"><div class="dir-btn" data-value="nw">↖</div><div class="dir-btn" data-value="n">北</div><div class="dir-btn" data-value="ne">↗</div><div class="dir-btn" data-value="w">西</div><div class="dir-btn center active" data-value="any">随意</div><div class="dir-btn" data-value="e">东</div><div class="dir-btn" data-value="sw">↙</div><div class="dir-btn" data-value="s">南</div><div class="dir-btn" data-value="se">↘</div></div></div>
+      <div class="form-section"><div class="form-section-title">☕ 途经目的地</div><div style="position:relative"><input class="form-input" id="pi" placeholder="搜索具体店名" autocomplete="off"><div class="sbox" id="ps"></div></div><div class="quick-poi"><div class="qp" data-type="咖啡店">☕ 咖啡店</div><div class="qp" data-type="便利店">🏪 便利店</div><div class="qp" data-type="公园">🌳 公园</div><div class="qp" data-type="餐厅">🍜 餐厅</div></div><div class="poi-tags" id="pt"></div></div>
     </div>
-
-    <div class="sidebar-footer">
-      <button class="generate-btn" id="generate-btn">
-        <i class="fa-solid fa-route"></i> 生成骑行路线
-      </button>
-    </div>
+    <div class="sidebar-footer"><button class="gen-btn" id="gb">🚴 生成骑行路线</button></div>
   </div>
-
-  <!-- Main map area -->
   <div class="main">
-    <div id="map-container">
-      <div class="map-empty" id="map-empty">
-        <div class="map-empty-icon">🚴</div>
-        <div class="map-empty-text">设置出发点和偏好<br>点击「生成骑行路线」开始</div>
-      </div>
-    </div>
-
-    <div class="route-panel" id="route-panel"></div>
-
-    <div class="loading-overlay" id="loading">
-      <div class="loading-spinner"></div>
-      <div class="loading-text">正在规划路线...</div>
-    </div>
-
-    <div class="elevation-panel" id="elevation-panel">
-      <div class="elevation-title">📈 坡度剖面</div>
-      <canvas class="elevation-canvas" id="elevation-canvas"></canvas>
-    </div>
+    <div id="map-container"><div class="mempty" id="me"><div style="font-size:48px;color:var(--border);margin-bottom:16px">🚴</div><div style="color:var(--text-dim);font-size:15px;text-align:center;line-height:1.6">设置出发点和偏好<br>点击「生成骑行路线」开始</div></div></div>
+    <div class="rpanel" id="rp"></div>
+    <div class="lov" id="lov"><div class="lspin"></div><div class="ltxt">正在规划路线...</div></div>
+    <div class="epanel" id="ep"><div class="etitle">📈 坡度剖面</div><canvas id="ecanvas"></canvas></div>
   </div>
 </div>
+<div class="noti" id="noti"></div>
+<div id="dbg"></div>
 
-<div class="notification" id="notification"></div>
-
-<script src="https://webapi.amap.com/loader.js"></script>
 <script>
-window._AMapSecurityConfig = {
-  serviceHost: 'https://webapi.amap.com'
+var D=document.getElementById('dbg');
+function L(m){var d=document.createElement('div');d.textContent=new Date().toLocaleTimeString()+' '+m;D.appendChild(d);D.scrollTop=1e6;console.log('[RG]',m)}
+L('Page loaded, requesting AMap SDK...');
+</script>
+
+<script>
+window._AMapSecurityConfig={securityJsCode:''};
+</script>
+<script src="https://webapi.amap.com/maps?v=2.0&key=a6d81f0dd00a39595187f335361ae4e7&plugin=AMap.Riding,AMap.Geocoder,AMap.PlaceSearch,AMap.AutoComplete&callback=_amapCb"></script>
+<script>
+window._amapCb=function(){
+  L('_amapCb fired! AMap='+typeof AMap);
+  if(typeof AMap!=='undefined') run();
+  else L('ERROR: AMap is undefined in callback');
 };
+setTimeout(function(){
+  L('Timeout check: AMap='+typeof window.AMap);
+  if(typeof window.AMap!=='undefined'&&!window._started){L('Starting via timeout');run();}
+  else if(typeof window.AMap==='undefined') L('FATAL: AMap never loaded');
+},6000);
 
-AMapLoader.load({
-  key: 'a6d81f0dd00a39595187f335361ae4e7',
-  version: '2.0',
-  plugins: ['AMap.Riding','AMap.Geocoder','AMap.PlaceSearch','AMap.AutoComplete']
-}).then(function(AMap) {
-  window.AMap = AMap;
-  startApp(AMap);
-}).catch(function(e) {
-  console.error('高德地图加载失败:', e);
-  document.getElementById('map-container').innerHTML = '<div style="color:#f87171;padding:40px;text-align:center;">地图加载失败: ' + e.message + '</div>';
-});
+function run(){
+  if(window._started)return;window._started=true;
+  L('run() called');
+  var S={startPoint:null,distance:30,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0};
+  var map,geo,ps,ac,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
 
-function startApp(AMap) {
-  // State
-  const state = {
-    startPoint: null, // { lng, lat, name }
-    distance: 30,
-    area: 'suburban',
-    surface: ['paved'],
-    traffic: 'less',
-    slope: 'flat',
-    direction: 'any',
-    pois: [], // { name, type, location? }
-    routes: [],
-    activeRoute: 0
-  };
+  function init(){
+    map=new AMap.Map('map-container',{zoom:12,center:[116.397428,39.90923],mapStyle:'amap://styles/dark',viewMode:'2D'});
+    L('Map created');
+    geo=new AMap.Geocoder();ps=new AMap.PlaceSearch({pageSize:5});ac=new AMap.AutoComplete({city:'全国'});
+    L('ac='+!!ac+' ps='+!!ps+' geo='+!!geo);
 
-  let map, geocoder, placeSearch, autoComplete;
-  let routePolylines = [];
-  let markerGroup = [];
-
-  // Init map
-  function initMap() {
-    map = new AMap.Map('map-container', {
-      zoom: 12,
-      center: [116.397428, 39.90923],
-      mapStyle: 'amap://styles/dark',
-      viewMode: '2D'
-    });
-
-    geocoder = new AMap.Geocoder();
-    placeSearch = new AMap.PlaceSearch({ pageSize: 5 });
-    autoComplete = new AMap.AutoComplete({ city: '全国' });
-
-    // Click map to set start point
-    map.on('click', function(e) {
-      const lnglat = e.lnglat;
-      geocoder.getAddress([lnglat.lng, lnglat.lat], function(status, result) {
-        if (status === 'complete') {
-          state.startPoint = {
-            lng: lnglat.lng,
-            lat: lnglat.lat,
-            name: result.regeocode.formattedAddress
-          };
-          document.getElementById('start-input').value = state.startPoint.name;
-          addStartMarker();
-          notify('已设置出发点', 'success');
-        }
+    map.on('click',function(e){
+      geo.getAddress([e.lnglat.lng,e.lnglat.lat],function(st,r){
+        if(st==='complete'){S.startPoint={lng:e.lnglat.lng,lat:e.lnglat.lat,name:r.regeocode.formattedAddress};document.getElementById('si').value=S.startPoint.name;asm();noti('已设置出发点','success');}
       });
     });
   }
 
-  function addStartMarker() {
-    // Remove old start markers
-    markerGroup.forEach(m => { if (m._isStart) map.remove(m); });
-    markerGroup = markerGroup.filter(m => !m._isStart);
-
-    if (!state.startPoint) return;
-
-    const marker = new AMap.Marker({
-      position: [state.startPoint.lng, state.startPoint.lat],
-      content: '<div class="start-marker"><i class="fa-solid fa-flag" style="color:#0f1117;font-size:12px"></i></div>',
-      offset: new AMap.Pixel(-14, -14)
-    });
-    marker._isStart = true;
-    map.add(marker);
-    markerGroup.push(marker);
-    map.setCenter([state.startPoint.lng, state.startPoint.lat]);
+  function asm(){
+    mg.forEach(function(m){if(m._s)map.remove(m)});mg=mg.filter(function(m){return!m._s});
+    if(!S.startPoint)return;
+    var m=new AMap.Marker({position:[S.startPoint.lng,S.startPoint.lat],content:'<div style="width:24px;height:24px;background:#4ade80;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',offset:new AMap.Pixel(-12,-12)});
+    m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
   }
 
-  // Start point geocoding
-  let startTimer;
-  document.getElementById('start-input').addEventListener('input', function(e) {
-    clearTimeout(startTimer);
-    const val = e.target.value.trim();
-    if (val.length < 2) {
-      document.getElementById('start-suggestions').classList.remove('show');
-      return;
-    }
-    startTimer = setTimeout(() => {
-      // Try AutoComplete first, fallback to PlaceSearch
-      function showResults(items) {
-        const container = document.getElementById('start-suggestions');
-        container.innerHTML = '';
-        if (!items || items.length === 0) {
-          container.classList.remove('show');
-          return;
+  // Start search
+  var st;
+  document.getElementById('si').addEventListener('input',function(){
+    clearTimeout(st);var v=this.value.trim(),c=document.getElementById('ss');
+    if(v.length<2){c.classList.remove('show');return;}
+    st=setTimeout(function(){
+      L('search: '+v);
+      ac.search(v,function(s,r){
+        L('ac result: '+s);
+        if(s==='complete'&&r.tips){
+          var items=r.tips.filter(function(t){return t.location}).slice(0,5);
+          if(items.length>0){showS(c,items.map(function(t){return{name:t.name,dist:t.district||'',lng:t.location.lng,lat:t.location.lat}}));return;}
         }
-        items.slice(0, 5).forEach(item => {
-          const div = document.createElement('div');
-          div.className = 'geo-item';
-          div.textContent = item.name + (item.district ? ' · ' + item.district : '');
-          div.addEventListener('click', () => {
-            state.startPoint = {
-              lng: item.lng,
-              lat: item.lat,
-              name: item.name
-            };
-            document.getElementById('start-input').value = item.name;
-            container.classList.remove('show');
-            addStartMarker();
-            map.setZoomAndCenter(13, [item.lng, item.lat]);
-          });
-          container.appendChild(div);
+        L('fallback to ps');
+        ps.search(v,function(s2,r2){
+          L('ps result: '+s2);
+          if(s2==='complete'&&r2.poiList){showS(c,r2.poiList.pois.slice(0,5).map(function(p){return{name:p.name,dist:p.address||'',lng:p.location.lng,lat:p.location.lat}}));}
+          else showS(c,[]);
         });
-        container.classList.add('show');
-      }
-
-      // Method 1: AutoComplete
-      if (autoComplete) {
-        autoComplete.search(val, function(status, result) {
-          if (status === 'complete' && result.tips && result.tips.length > 0) {
-            const items = result.tips.filter(t => t.location).map(t => ({
-              name: t.name,
-              district: t.district,
-              lng: t.location.lng,
-              lat: t.location.lat
-            }));
-            showResults(items);
-          } else {
-            // Fallback: PlaceSearch
-            placeSearch.search(val, function(s2, r2) {
-              if (s2 === 'complete' && r2.poiList && r2.poiList.pois.length > 0) {
-                const items = r2.poiList.pois.map(p => ({
-                  name: p.name,
-                  district: p.address || '',
-                  lng: p.location.lng,
-                  lat: p.location.lat
-                }));
-                showResults(items);
-              } else {
-                showResults([]);
-              }
-            });
-          }
-        });
-      } else {
-        // No AutoComplete, use PlaceSearch directly
-        placeSearch.search(val, function(status, result) {
-          if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
-            const items = result.poiList.pois.map(p => ({
-              name: p.name,
-              district: p.address || '',
-              lng: p.location.lng,
-              lat: p.location.lat
-            }));
-            showResults(items);
-          } else {
-            showResults([]);
-          }
-        });
-      }
-    }, 300);
-  });
-
-  document.addEventListener('click', function(e) {
-    if (!e.target.closest('#start-input') && !e.target.closest('#start-suggestions')) {
-      document.getElementById('start-suggestions').classList.remove('show');
-    }
-    if (!e.target.closest('#poi-input') && !e.target.closest('#poi-suggestions')) {
-      document.getElementById('poi-suggestions').classList.remove('show');
-    }
-  });
-
-  // Distance slider
-  const slider = document.getElementById('distance-slider');
-  const distDisplay = document.getElementById('distance-display');
-  slider.addEventListener('input', () => {
-    state.distance = parseInt(slider.value);
-    distDisplay.textContent = state.distance;
-  });
-
-  // Chip groups (single select)
-  document.querySelectorAll('.chip-group:not(.multi)').forEach(group => {
-    const name = group.dataset.name;
-    group.querySelectorAll('.chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        state[name] = chip.dataset.value;
       });
-    });
+    },400);
   });
 
-  // Multi-select chips (surface)
-  document.querySelectorAll('.chip-group.multi').forEach(group => {
-    const name = group.dataset.name;
-    group.querySelectorAll('.chip-multi').forEach(chip => {
-      chip.addEventListener('click', () => {
-        if (chip.dataset.value === 'any') {
-          group.querySelectorAll('.chip-multi').forEach(c => c.classList.remove('active'));
-          chip.classList.add('active');
-          state[name] = ['any'];
-        } else {
-          group.querySelector('[data-value="any"]').classList.remove('active');
-          chip.classList.toggle('active');
-          state[name] = Array.from(group.querySelectorAll('.chip-multi.active')).map(c => c.dataset.value);
-          if (state[name].length === 0) {
-            group.querySelector('[data-value="any"]').classList.add('active');
-            state[name] = ['any'];
-          }
-        }
-      });
+  function showS(c,items){
+    c.innerHTML='';
+    if(!items.length){c.classList.remove('show');return;}
+    items.forEach(function(it){
+      var d=document.createElement('div');d.className='si';
+      d.innerHTML=it.name+(it.dist?'<div class="ad">'+it.dist+'</div>':'');
+      d.onclick=function(){S.startPoint={lng:it.lng,lat:it.lat,name:it.name};document.getElementById('si').value=it.name;c.classList.remove('show');asm();map.setZoomAndCenter(13,[it.lng,it.lat]);};
+      c.appendChild(d);
     });
-  });
-
-  // Direction grid
-  document.querySelectorAll('.dir-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.direction = btn.dataset.value;
-    });
-  });
-
-  // Quick POI chips
-  document.querySelectorAll('.quick-poi-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const type = chip.dataset.type;
-      chip.classList.toggle('selected');
-      if (chip.classList.contains('selected')) {
-        state.pois.push({ name: type, type: 'category' });
-      } else {
-        state.pois = state.pois.filter(p => !(p.name === type && p.type === 'category'));
-      }
-      renderPoiTags();
-    });
-  });
+    c.classList.add('show');L('showing '+items.length+' suggestions');
+  }
 
   // POI search
-  let poiTimer;
-  document.getElementById('poi-input').addEventListener('input', function(e) {
-    clearTimeout(poiTimer);
-    const val = e.target.value.trim();
-    if (val.length < 2) {
-      document.getElementById('poi-suggestions').classList.remove('show');
-      return;
-    }
-    poiTimer = setTimeout(() => {
-      placeSearch.search(val, function(status, result) {
-        if (status === 'complete' && result.poiList) {
-          const container = document.getElementById('poi-suggestions');
-          container.innerHTML = '';
-          result.poiList.pois.slice(0, 5).forEach(poi => {
-            const div = document.createElement('div');
-            div.className = 'poi-suggestion-item';
-            div.innerHTML = `<div class="name">${poi.name}</div><div class="addr">${poi.address || ''}</div>`;
-            div.addEventListener('click', () => {
-              state.pois.push({
-                name: poi.name,
-                type: 'exact',
-                location: { lng: poi.location.lng, lat: poi.location.lat }
-              });
-              renderPoiTags();
-              document.getElementById('poi-input').value = '';
-              container.classList.remove('show');
-            });
-            container.appendChild(div);
+  var pt;
+  document.getElementById('pi').addEventListener('input',function(){
+    clearTimeout(pt);var v=this.value.trim(),c=document.getElementById('ps');
+    if(v.length<2){c.classList.remove('show');return;}
+    pt=setTimeout(function(){
+      ps.search(v,function(s,r){
+        if(s==='complete'&&r.poiList){
+          c.innerHTML='';
+          r.poiList.pois.slice(0,5).forEach(function(p){
+            var d=document.createElement('div');d.className='si';
+            d.innerHTML=p.name+'<div class="ad">'+(p.address||'')+'</div>';
+            d.onclick=function(){S.pois.push({name:p.name,type:'exact',location:{lng:p.location.lng,lat:p.location.lat}});rpt();document.getElementById('pi').value='';c.classList.remove('show');};
+            c.appendChild(d);
           });
-          container.classList.add('show');
+          c.classList.add('show');
         }
       });
-    }, 300);
+    },400);
   });
 
-  function renderPoiTags() {
-    const container = document.getElementById('poi-tags');
-    container.innerHTML = '';
-    state.pois.forEach((poi, i) => {
-      const tag = document.createElement('div');
-      tag.className = 'poi-tag';
-      tag.innerHTML = `${poi.type === 'exact' ? '📍' : '🏷'} ${poi.name} <span class="remove" data-index="${i}">✕</span>`;
-      container.appendChild(tag);
+  document.addEventListener('click',function(e){
+    if(!e.target.closest('#si')&&!e.target.closest('#ss'))document.getElementById('ss').classList.remove('show');
+    if(!e.target.closest('#pi')&&!e.target.closest('#ps'))document.getElementById('ps').classList.remove('show');
+  });
+
+  document.getElementById('ds').oninput=function(){S.distance=+this.value;document.getElementById('dd').textContent=S.distance;};
+
+  document.querySelectorAll('.chip-group').forEach(function(g){
+    g.querySelectorAll('.chip').forEach(function(c){
+      c.onclick=function(){g.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});c.classList.add('active');S[g.dataset.name]=c.dataset.value;};
     });
-    container.querySelectorAll('.remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const idx = parseInt(btn.dataset.index);
-        const removed = state.pois[idx];
-        state.pois.splice(idx, 1);
-        // Unselect quick chip if it was a category
-        if (removed.type === 'category') {
-          document.querySelectorAll('.quick-poi-chip').forEach(c => {
-            if (c.dataset.type === removed.name) c.classList.remove('selected');
-          });
-        }
-        renderPoiTags();
+  });
+  document.querySelectorAll('.dir-btn').forEach(function(b){
+    b.onclick=function(){document.querySelectorAll('.dir-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');S.direction=b.dataset.value;};
+  });
+  document.querySelectorAll('.qp').forEach(function(c){
+    c.onclick=function(){var t=c.dataset.type;c.classList.toggle('sel');
+      if(c.classList.contains('sel'))S.pois.push({name:t,type:'category'});
+      else S.pois=S.pois.filter(function(p){return!(p.name===t&&p.type==='category')});
+      rpt();};
+  });
+
+  function rpt(){
+    var c=document.getElementById('pt');c.innerHTML='';
+    S.pois.forEach(function(p,i){
+      var t=document.createElement('div');t.className='poi-tag';
+      t.innerHTML=(p.type==='exact'?'📍':'🏷')+' '+p.name+' <span class="rm" data-i="'+i+'">✕</span>';
+      c.appendChild(t);
+    });
+    c.querySelectorAll('.rm').forEach(function(b){
+      b.onclick=function(){var x=+b.dataset.i,rm=S.pois[x];S.pois.splice(x,1);
+        if(rm.type==='category')document.querySelectorAll('.qp').forEach(function(c){if(c.dataset.type===rm.name)c.classList.remove('sel')});
+        rpt();};
+    });
+  }
+
+  function noti(m,t){var e=document.getElementById('noti');e.textContent=(t==='error'?'⚠ ':'✓ ')+m;e.className='noti '+(t||'');setTimeout(function(){e.classList.add('show')},10);setTimeout(function(){e.classList.remove('show')},3000);}
+
+  function gda(d){var a={n:90,ne:45,e:0,se:-45,s:-90,sw:-135,w:180,nw:135};return a[d]!==undefined?a[d]:null;}
+  function gwp(c,dk,dir){
+    var R=dk/(2*Math.PI)*1.3,n=4,w=[],ba=gda(dir);
+    for(var i=0;i<n;i++){
+      var ang;if(ba!==null)ang=ba-60+(120/(n-1))*i;else ang=(360/n)*i+(Math.random()*30-15);
+      var rad=ang*Math.PI/180,r=R*(.7+Math.random()*.3);
+      w.push({lng:c.lng+(r/(111*Math.cos(c.lat*Math.PI/180)))*Math.cos(rad),lat:c.lat+(r/111)*Math.sin(rad)});
+    }return w;
+  }
+  function rr(o,d){
+    return new Promise(function(res){
+      var r=new AMap.Riding({hideMarkers:true,autoFitView:false});
+      r.search(new AMap.LngLat(o.lng,o.lat),new AMap.LngLat(d.lng,d.lat),function(s,result){
+        try{r.clear()}catch(e){}
+        if(s==='complete'&&result.routes&&result.routes.length)res(result.routes[0]);else{L('ride fail:'+s);res(null);}
       });
     });
   }
-
-  // === Route Generation ===
-  function getDirectionAngle(dir) {
-    const angles = {
-      n: 90, ne: 45, e: 0, se: -45,
-      s: -90, sw: -135, w: 180, nw: 135
-    };
-    return angles[dir] !== undefined ? angles[dir] : null;
+  function ep(route){
+    var p=[];var segs=route.rides||route.steps||[];
+    segs.forEach(function(s){(s.path||[]).forEach(function(pt){try{p.push({lng:pt.lng||pt.getLng(),lat:pt.lat||pt.getLat()})}catch(e){}})});
+    if(!p.length&&route.path)route.path.forEach(function(pt){try{p.push({lng:pt.lng||pt.getLng(),lat:pt.lat||pt.getLat()})}catch(e){}});
+    return p;
   }
-
-  function generateWaypoints(center, distanceKm, direction) {
-    const R = distanceKm / (2 * Math.PI) * 1.3; // radius in km, with adjustment
-    const numPoints = 4;
-    const waypoints = [];
-    const baseAngle = getDirectionAngle(direction);
-
-    for (let i = 0; i < numPoints; i++) {
-      let angle;
-      if (baseAngle !== null) {
-        // Spread points in a 120° arc centered on preferred direction
-        const spread = 120;
-        angle = baseAngle - spread / 2 + (spread / (numPoints - 1)) * i;
-      } else {
-        // Random direction: evenly distribute
-        angle = (360 / numPoints) * i + (Math.random() * 30 - 15);
-      }
-
-      const rad = (angle * Math.PI) / 180;
-      // Add some randomness to radius (0.7 to 1.0 of R)
-      const r = R * (0.7 + Math.random() * 0.3);
-      const dlat = (r / 111) * Math.sin(rad);
-      const dlng = (r / (111 * Math.cos((center.lat * Math.PI) / 180))) * Math.cos(rad);
-
-      waypoints.push({
-        lng: center.lng + dlng,
-        lat: center.lat + dlat
-      });
-    }
-
-    return waypoints;
-  }
-
-  async function searchPOIsAlongRoute(routePath) {
-    const categoryPois = state.pois.filter(p => p.type === 'category');
-    if (categoryPois.length === 0) return [];
-
-    const results = [];
-    for (const cpoi of categoryPois) {
-      // Search near the midpoint of the route
-      const mid = routePath[Math.floor(routePath.length / 2)];
-      await new Promise((resolve) => {
-        placeSearch.searchNearBy(cpoi.name, [mid.lng, mid.lat], 3000, function(status, result) {
-          if (status === 'complete' && result.poiList) {
-            result.poiList.pois.slice(0, 2).forEach(p => {
-              results.push({
-                name: p.name,
-                location: { lng: p.location.lng, lat: p.location.lat },
-                type: cpoi.name,
-                address: p.address || ''
-              });
-            });
-          }
-          resolve();
+  function scpoi(path){
+    var cats=S.pois.filter(function(p){return p.type==='category'});
+    if(!cats.length)return Promise.resolve([]);
+    var mid=path[Math.floor(path.length/2)],res=[];
+    return Promise.all(cats.map(function(cp){
+      return new Promise(function(rv){
+        ps.searchNearBy(cp.name,[mid.lng,mid.lat],3000,function(s,r){
+          if(s==='complete'&&r.poiList)r.poiList.pois.slice(0,2).forEach(function(p){res.push({name:p.name,location:{lng:p.location.lng,lat:p.location.lat},type:cp.name})});
+          rv();
         });
       });
-    }
-    return results;
+    })).then(function(){return res});
+  }
+  function mel(n,sl){var p=[],e=50+Math.random()*30,mv=sl==='flat'?5:sl==='moderate'?15:10;for(var i=0;i<Math.min(n,200);i++){var pr=i/Math.min(n,200);e+=(Math.random()-.5)*2;p.push(Math.max(10,e+Math.sin(pr*Math.PI*3)*mv+Math.sin(pr*Math.PI*7)*mv*.3))}return p}
+
+  async function gor(idx){
+    var c=S.startPoint,wps=gwp(c,S.distance,S.direction);
+    S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
+    var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0;
+    for(var i=0;i<pts.length-1;i++){L('seg '+i);var r=await rr(pts[i],pts[i+1]);if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}}
+    var fpoi=await scpoi(fp);
+    return{index:idx,path:fp,distance:td,time:tt,elevation:mel(fp.length,S.slope),pois:S.pois.filter(function(p){return p.type==='exact'}).map(function(p){return{name:p.name,location:p.location,type:'指定'}}).concat(fpoi)};
   }
 
-  function ridingRoute(origin, destination) {
-    return new Promise((resolve) => {
-      const riding = new AMap.Riding({ 
-        policy: 0,
-        hideMarkers: true,
-        isOutline: false,
-        outlineColor: 'transparent',
-        autoFitView: false
-      });
-      riding.clear();
-      riding.search(
-        new AMap.LngLat(origin.lng, origin.lat),
-        new AMap.LngLat(destination.lng, destination.lat),
-        function(status, result) {
-          if (status === 'complete' && result.routes && result.routes.length > 0) {
-            // v1.4: hide the default rendering
-            try { riding.clear(); } catch(e) {}
-            resolve(result.routes[0]);
-          } else {
-            resolve(null);
-          }
-        }
-      );
+  async function gen(){
+    if(!S.startPoint){noti('请先设置出发点','error');return}
+    document.getElementById('gb').disabled=true;document.getElementById('lov').classList.add('show');document.getElementById('me').style.display='none';
+    rpl.forEach(function(p){map.remove(p)});rpl=[];mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
+    try{
+      var routes=[];
+      for(var i=0;i<2;i++){L('gen route '+i);var r=await gor(i);if(r&&r.path.length)routes.push(r)}
+      if(!routes.length){noti('路线规划失败','error');return}
+      S.routes=routes;S.activeRoute=0;rrs();rrcs();sel(0);
+      document.getElementById('rp').classList.add('show');document.getElementById('ep').classList.add('show');
+    }catch(e){L('ERR:'+e.message);noti('出错了','error')}
+    finally{document.getElementById('gb').disabled=false;document.getElementById('lov').classList.remove('show')}
+  }
+
+  function rrs(){
+    rpl.forEach(function(p){map.remove(p)});rpl=[];
+    S.routes.forEach(function(r,i){
+      var path=r.path.map(function(p){return[p.lng,p.lat]}),ia=i===S.activeRoute;
+      var sh=new AMap.Polyline({path:path,strokeColor:rc[i],strokeWeight:ia?10:6,strokeOpacity:.15,lineJoin:'round',lineCap:'round'});
+      var ln=new AMap.Polyline({path:path,strokeColor:rc[i],strokeWeight:ia?5:3,strokeOpacity:ia?.9:.4,lineJoin:'round',lineCap:'round'});
+      ln.on('click',function(){sel(i)});map.add(sh);map.add(ln);rpl.push(sh,ln);
+    });
+    map.setFitView(null,false,[60,60,160,400]);
+  }
+  function rpm(r){
+    mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
+    r.pois.forEach(function(p){
+      var m=new AMap.Marker({position:[p.location.lng,p.location.lat],content:'<div style="background:#1a1d27;border:1px solid #60a5fa;border-radius:8px;padding:4px 8px;font-size:11px;color:#60a5fa;white-space:nowrap">📍 '+p.name+'</div>',offset:new AMap.Pixel(-40,-12)});
+      map.add(m);mg.push(m);
     });
   }
-
-  function extractPathFromRoute(route) {
-    const path = [];
-    // v1.4 uses 'rides', v2.0 also uses 'rides'; fallback to 'steps' or 'path'
-    const segments = route.rides || route.steps || [];
-    if (segments.length > 0) {
-      segments.forEach(seg => {
-        const pts = seg.path || [];
-        pts.forEach(p => {
-          path.push({ lng: p.lng || p.getLng(), lat: p.lat || p.getLat() });
-        });
-      });
-    }
-    // If rides/steps extraction failed, try the route-level path
-    if (path.length === 0 && route.path) {
-      route.path.forEach(p => {
-        path.push({ lng: p.lng || p.getLng(), lat: p.lat || p.getLat() });
-      });
-    }
-    return path;
-  }
-
-  async function generateRoute(routeIndex) {
-    const center = state.startPoint;
-    const waypoints = generateWaypoints(center, state.distance, state.direction);
-
-    // If there are exact POIs, replace nearest waypoints
-    const exactPois = state.pois.filter(p => p.type === 'exact');
-    exactPois.forEach((poi, i) => {
-      if (i < waypoints.length) {
-        waypoints[i] = { lng: poi.location.lng, lat: poi.location.lat };
-      }
-    });
-
-    // Build the full loop: start → wp1 → wp2 → ... → start
-    const points = [center, ...waypoints, center];
-    let fullPath = [];
-    let totalDistance = 0;
-    let totalTime = 0;
-
-    for (let i = 0; i < points.length - 1; i++) {
-      const route = await ridingRoute(points[i], points[i + 1]);
-      if (route) {
-        totalDistance += route.distance;
-        totalTime += route.time;
-        const segPath = extractPathFromRoute(route);
-        fullPath = fullPath.concat(segPath);
-      }
-    }
-
-    // Search category POIs along route
-    const foundPois = await searchPOIsAlongRoute(fullPath);
-
-    return {
-      index: routeIndex,
-      path: fullPath,
-      distance: totalDistance,
-      time: totalTime,
-      elevation: generateMockElevation(fullPath.length, state.slope),
-      pois: [...exactPois.map(p => ({ name: p.name, location: p.location, type: '指定地点' })), ...foundPois]
-    };
-  }
-
-  function generateMockElevation(numPoints, slopePreference) {
-    // Generate realistic-ish elevation data
-    const points = [];
-    let elevation = 50 + Math.random() * 30;
-    const maxVariation = slopePreference === 'flat' ? 5 : slopePreference === 'moderate' ? 15 : 10;
-
-    for (let i = 0; i < Math.min(numPoints, 200); i++) {
-      const progress = i / Math.min(numPoints, 200);
-      // Create rolling hills
-      const hill = Math.sin(progress * Math.PI * 3) * maxVariation +
-                   Math.sin(progress * Math.PI * 7) * (maxVariation * 0.3);
-      elevation += (Math.random() - 0.5) * 2;
-      points.push(Math.max(10, elevation + hill));
-    }
-    return points;
-  }
-
-  async function generate() {
-    if (!state.startPoint) {
-      notify('请先设置出发点', 'error');
-      return;
-    }
-
-    const btn = document.getElementById('generate-btn');
-    btn.disabled = true;
-    document.getElementById('loading').classList.add('show');
-    document.getElementById('map-empty').style.display = 'none';
-
-    // Clear previous routes
-    routePolylines.forEach(p => map.remove(p));
-    routePolylines = [];
-    markerGroup.forEach(m => { if (!m._isStart) map.remove(m); });
-    markerGroup = markerGroup.filter(m => m._isStart);
-
-    try {
-      const routes = [];
-      // Generate 2 route variants
-      for (let i = 0; i < 2; i++) {
-        const route = await generateRoute(i);
-        if (route && route.path.length > 0) {
-          routes.push(route);
-        }
-      }
-
-      if (routes.length === 0) {
-        notify('路线规划失败，请尝试调整参数', 'error');
-        return;
-      }
-
-      state.routes = routes;
-      state.activeRoute = 0;
-      renderRoutes();
-      renderRouteCards();
-      selectRoute(0);
-      document.getElementById('route-panel').classList.add('show');
-      document.getElementById('elevation-panel').classList.add('show');
-
-    } catch (err) {
-      console.error(err);
-      notify('路线规划出错：' + err.message, 'error');
-    } finally {
-      btn.disabled = false;
-      document.getElementById('loading').classList.remove('show');
-    }
-  }
-
-  const routeColors = ['#4ade80', '#60a5fa', '#fb923c'];
-
-  function renderRoutes() {
-    routePolylines.forEach(p => map.remove(p));
-    routePolylines = [];
-
-    state.routes.forEach((route, i) => {
-      const path = route.path.map(p => [p.lng, p.lat]);
-      const isActive = i === state.activeRoute;
-
-      // Shadow line
-      const shadow = new AMap.Polyline({
-        path: path,
-        strokeColor: routeColors[i],
-        strokeWeight: isActive ? 10 : 6,
-        strokeOpacity: 0.15,
-        lineJoin: 'round',
-        lineCap: 'round'
-      });
-
-      // Main line
-      const line = new AMap.Polyline({
-        path: path,
-        strokeColor: routeColors[i],
-        strokeWeight: isActive ? 5 : 3,
-        strokeOpacity: isActive ? 0.9 : 0.4,
-        lineJoin: 'round',
-        lineCap: 'round'
-      });
-
-      line._routeIndex = i;
-      line.on('click', () => selectRoute(i));
-
-      map.add(shadow);
-      map.add(line);
-      routePolylines.push(shadow, line);
-    });
-
-    // Fit view
-    if (state.routes[0]?.path.length > 0) {
-      const allPaths = state.routes.flatMap(r => r.path.map(p => [p.lng, p.lat]));
-      map.setFitView(null, false, [60, 60, 160, 400]);
-    }
-  }
-
-  function renderPOIMarkers(route) {
-    // Clear non-start markers
-    markerGroup.forEach(m => { if (!m._isStart) map.remove(m); });
-    markerGroup = markerGroup.filter(m => m._isStart);
-
-    route.pois.forEach(poi => {
-      const marker = new AMap.Marker({
-        position: [poi.location.lng, poi.location.lat],
-        content: `<div class="poi-marker-label">📍 ${poi.name}</div>`,
-        offset: new AMap.Pixel(-40, -12)
-      });
-      map.add(marker);
-      markerGroup.push(marker);
+  function rrcs(){
+    var panel=document.getElementById('rp');panel.innerHTML='';
+    S.routes.forEach(function(r,i){
+      var dk=(r.distance/1000).toFixed(1),tm=Math.round(r.time/60),h=Math.floor(tm/60),m=tm%60,ts=h?h+'h '+m+'m':m+'min';
+      var cl=0;for(var j=1;j<r.elevation.length;j++)if(r.elevation[j]>r.elevation[j-1])cl+=r.elevation[j]-r.elevation[j-1];
+      var cd=document.createElement('div');cd.className='rcard'+(i===S.activeRoute?' active':'');
+      cd.innerHTML='<div class="rcard-head"><div class="rcard-title" style="color:'+rc[i]+'">路线 '+['A','B','C'][i]+'</div><div class="rcard-badge" style="background:'+rc[i]+'20;color:'+rc[i]+'">'+dk+' km</div></div><div class="rstats"><div><div class="rsl">预计时间</div><div class="rsv">'+ts+'</div></div><div><div class="rsl">总爬升</div><div class="rsv">+'+cl.toFixed(0)+'m</div></div><div><div class="rsl">最高海拔</div><div class="rsv">'+Math.max.apply(null,r.elevation).toFixed(0)+'m</div></div><div><div class="rsl">沿途POI</div><div class="rsv">'+r.pois.length+'个</div></div></div>';
+      cd.onclick=function(){sel(i)};panel.appendChild(cd);
     });
   }
-
-  function renderRouteCards() {
-    const panel = document.getElementById('route-panel');
-    panel.innerHTML = '';
-
-    state.routes.forEach((route, i) => {
-      const distKm = (route.distance / 1000).toFixed(1);
-      const timeMin = Math.round(route.time / 60);
-      const hours = Math.floor(timeMin / 60);
-      const mins = timeMin % 60;
-      const timeStr = hours > 0 ? `${hours}h ${mins}min` : `${mins}min`;
-      const elevData = route.elevation;
-      const maxElev = Math.max(...elevData).toFixed(0);
-      const totalClimb = calculateClimb(elevData).toFixed(0);
-
-      const card = document.createElement('div');
-      card.className = `route-card ${i === state.activeRoute ? 'active' : ''}`;
-      card.innerHTML = `
-        <div class="route-card-header">
-          <div class="route-card-title" style="color:${routeColors[i]}">路线 ${['A', 'B', 'C'][i]}</div>
-          <div class="route-card-badge" style="background:${routeColors[i]}20;color:${routeColors[i]}">${distKm} km</div>
-        </div>
-        <div class="route-stats">
-          <div class="route-stat">
-            <div class="route-stat-label">预计时间</div>
-            <div class="route-stat-value">${timeStr}</div>
-          </div>
-          <div class="route-stat">
-            <div class="route-stat-label">总爬升</div>
-            <div class="route-stat-value">+${totalClimb}m</div>
-          </div>
-          <div class="route-stat">
-            <div class="route-stat-label">最高海拔</div>
-            <div class="route-stat-value">${maxElev}m</div>
-          </div>
-          <div class="route-stat">
-            <div class="route-stat-label">沿途 POI</div>
-            <div class="route-stat-value">${route.pois.length} 个</div>
-          </div>
-        </div>
-      `;
-      card.addEventListener('click', () => selectRoute(i));
-      panel.appendChild(card);
-    });
+  function sel(i){S.activeRoute=i;rrs();rrcs();rpm(S.routes[i]);de(S.routes[i]);asm()}
+  function de(r){
+    var cv=document.getElementById('ecanvas'),cx=cv.getContext('2d'),dp=devicePixelRatio||1;
+    cv.width=cv.offsetWidth*dp;cv.height=cv.offsetHeight*dp;cx.scale(dp,dp);
+    var w=cv.offsetWidth,h=cv.offsetHeight,d=r.elevation,mn=Math.min.apply(null,d)-5,mx=Math.max.apply(null,d)+5,rg=mx-mn;
+    cx.clearRect(0,0,w,h);cx.strokeStyle='#2e3345';cx.lineWidth=.5;
+    for(var i=0;i<4;i++){var y=h/4*i+5;cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke()}
+    var g=cx.createLinearGradient(0,0,0,h),co=rc[r.index]||'#4ade80';g.addColorStop(0,co+'40');g.addColorStop(1,co+'05');
+    cx.beginPath();cx.moveTo(0,h);d.forEach(function(v,i){cx.lineTo(i/(d.length-1)*w,h-(v-mn)/rg*(h-10))});cx.lineTo(w,h);cx.closePath();cx.fillStyle=g;cx.fill();
+    cx.beginPath();d.forEach(function(v,i){var x=i/(d.length-1)*w,y=h-(v-mn)/rg*(h-10);i?cx.lineTo(x,y):cx.moveTo(x,y)});cx.strokeStyle=co;cx.lineWidth=2;cx.stroke();
+    cx.fillStyle='#8b8fa3';cx.font='10px "Space Mono",monospace';cx.fillText(mx.toFixed(0)+'m',4,14);cx.fillText(mn.toFixed(0)+'m',4,h-4);cx.fillText((r.distance/1000).toFixed(1)+'km',w-45,h-4);
   }
 
-  function calculateClimb(elevData) {
-    let climb = 0;
-    for (let i = 1; i < elevData.length; i++) {
-      if (elevData[i] > elevData[i - 1]) {
-        climb += elevData[i] - elevData[i - 1];
-      }
-    }
-    return climb;
-  }
-
-  function selectRoute(index) {
-    state.activeRoute = index;
-    renderRoutes();
-    renderRouteCards();
-    renderPOIMarkers(state.routes[index]);
-    drawElevation(state.routes[index]);
-    addStartMarker(); // Re-add start marker on top
-  }
-
-  function drawElevation(route) {
-    const canvas = document.getElementById('elevation-canvas');
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.width = canvas.offsetWidth * dpr;
-    canvas.height = canvas.offsetHeight * dpr;
-    ctx.scale(dpr, dpr);
-
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    const data = route.elevation;
-    const min = Math.min(...data) - 5;
-    const max = Math.max(...data) + 5;
-    const range = max - min;
-
-    ctx.clearRect(0, 0, w, h);
-
-    // Grid lines
-    ctx.strokeStyle = '#2e3345';
-    ctx.lineWidth = 0.5;
-    for (let i = 0; i < 4; i++) {
-      const y = (h / 4) * i + 5;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-
-    // Gradient fill
-    const gradient = ctx.createLinearGradient(0, 0, 0, h);
-    const color = routeColors[route.index] || '#4ade80';
-    gradient.addColorStop(0, color + '40');
-    gradient.addColorStop(1, color + '05');
-
-    ctx.beginPath();
-    ctx.moveTo(0, h);
-    data.forEach((val, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - ((val - min) / range) * (h - 10);
-      if (i === 0) ctx.lineTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.lineTo(w, h);
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // Line
-    ctx.beginPath();
-    data.forEach((val, i) => {
-      const x = (i / (data.length - 1)) * w;
-      const y = h - ((val - min) / range) * (h - 10);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    // Labels
-    ctx.fillStyle = '#8b8fa3';
-    ctx.font = '10px "Space Mono", monospace';
-    ctx.fillText(`${max.toFixed(0)}m`, 4, 14);
-    ctx.fillText(`${min.toFixed(0)}m`, 4, h - 4);
-    const distKm = (route.distance / 1000).toFixed(1);
-    ctx.fillText(`${distKm}km`, w - 40, h - 4);
-  }
-
-  // Notification
-  function notify(msg, type = 'info') {
-    const el = document.getElementById('notification');
-    el.textContent = msg;
-    el.className = 'notification ' + type;
-    setTimeout(() => el.classList.add('show'), 10);
-    setTimeout(() => el.classList.remove('show'), 3000);
-  }
-
-  // Generate button
-  document.getElementById('generate-btn').addEventListener('click', generate);
-
-  // Init
-  initMap();
-} // end startApp
+  document.getElementById('gb').onclick=gen;
+  init();
+}
 </script>
 </body>
 </html>
