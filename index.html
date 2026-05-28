@@ -104,7 +104,7 @@
   <div class="main">
     <div id="map-container"><div class="mempty" id="me"></div></div>
     <div class="rpanel" id="rp"></div>
-    <div class="lov" id="lov"><div class="lspin"></div><div class="ltxt">正在规划路线...</div></div>
+    <div class="lov" id="lov"><div class="lspin"></div><div class="ltxt">正在规划路线并校准里程...</div></div>
     <div class="epanel" id="ep"><div class="etitle">📈 坡度剖面</div><canvas id="ecanvas"></canvas></div>
   </div>
 </div>
@@ -359,20 +359,30 @@ function run(){
     {spread:110,offset:150,radiusMult:1.0}     // Explore: opposite-ish direction
   ];
 
-  // Build a loop route with given scale, return {path, distance, time, failCount}
-  async function buildLoop(c,targetDist,cfg,scaleFactor){
-    var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset,scaleFactor);
-    wps=wps.map(function(w){
-      var dlng=(w.lng-c.lng)*cfg.radiusMult,dlat=(w.lat-c.lat)*cfg.radiusMult;
-      return{lng:c.lng+dlng,lat:c.lat+dlat};
-    });
+  // Generate waypoints with DETERMINISTIC angles (no randomness) so distance
+  // feedback iteration converges correctly. radiusKm directly controls size.
+  function gwpFixed(c,radiusKm,direction,spread,angleOffset){
+    var n=4,w=[],ba=gda(direction);
+    for(var i=0;i<n;i++){
+      var ang;
+      if(ba!==null) ang=ba-spread/2+(spread/(n-1))*i+angleOffset;
+      else ang=(360/n)*i+angleOffset;
+      var rad=ang*Math.PI/180;
+      // Vary radius slightly per-waypoint but deterministically (sine pattern)
+      var rVar=radiusKm*(0.85+0.15*Math.abs(Math.sin(i*1.7)));
+      w.push({lng:c.lng+(rVar/(111*Math.cos(c.lat*Math.PI/180)))*Math.cos(rad),lat:c.lat+(rVar/111)*Math.sin(rad)});
+    }return w;
+  }
+
+  // Build a loop with explicit radius (km), return {path, distance, time, failCount}
+  async function buildLoopR(c,radiusKm,cfg){
+    var wps=gwpFixed(c,radiusKm,S.direction,cfg.spread,cfg.offset);
     S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
     var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0,fc=0;
     for(var i=0;i<pts.length-1;i++){
       var r=await rr(pts[i],pts[i+1]);
       if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}else{fc++}
     }
-    // Ensure closure
     if(fp.length>0){
       var last=fp[fp.length-1];
       if(Math.abs(last.lat-c.lat)>0.001||Math.abs(last.lng-c.lng)>0.001){
@@ -387,12 +397,11 @@ function run(){
   async function gor(idx){
     var c=S.startPoint;
     var cfg=routeConfigs[idx]||routeConfigs[0];
-    var targetDist=(S.distMin+S.distMax)/2; // aim for middle of range
+    var targetDist=(S.distMin+S.distMax)/2;
     var targetDistM=targetDist*1000;
     var fp=[],td=0,tt=0;
 
     if(S.endPoint){
-      // A→B mode
       var end=S.endPoint;
       var midLng=(c.lng+end.lng)/2,midLat=(c.lat+end.lat)/2;
       var dx=end.lng-c.lng,dy=end.lat-c.lat;
@@ -409,26 +418,29 @@ function run(){
       if(fc>pts.length/2||td===0) return{index:idx,path:[],distance:0,time:0,elevation:[],calories:0,pois:[]};
 
     }else{
-      // Loop mode with iterative distance correction
-      var scaleFactor=1.0;
-      var bestResult=null;
+      // Loop mode with real-distance feedback iteration
+      // Initial radius estimate: targetDist/5 km
+      var radiusKm=targetDist/5;
+      var bestResult=null,bestDev=999;
 
-      for(var attempt=0;attempt<3;attempt++){
-        var result=await buildLoop(c,targetDist,cfg,scaleFactor);
+      for(var attempt=0;attempt<5;attempt++){
+        var result=await buildLoopR(c,radiusKm,cfg);
         if(result.failCount>3||result.distance===0){
-          // Route completely failed
-          if(!bestResult) bestResult=result;
-          break;
+          if(!bestResult)bestResult=result;
+          // Try a different radius if failed
+          radiusKm=radiusKm*0.7;
+          continue;
         }
-        bestResult=result;
-        // Check distance deviation
         var deviation=result.distance/targetDistM;
-        if(deviation>0.85&&deviation<1.25) break; // within ±25%, good enough
-        // Adjust scale factor: if route is too long, shrink; if too short, expand
-        scaleFactor=scaleFactor/deviation;
-        // Clamp scale factor
-        if(scaleFactor<0.3)scaleFactor=0.3;
-        if(scaleFactor>2.0)scaleFactor=2.0;
+        var devFromOne=Math.abs(deviation-1);
+        // Keep the best result so far
+        if(devFromOne<bestDev){bestDev=devFromOne;bestResult=result}
+        // Within ±15% → good enough
+        if(deviation>=0.85&&deviation<=1.15) break;
+        // Adjust radius by inverse of deviation
+        radiusKm=radiusKm/deviation;
+        if(radiusKm<0.5)radiusKm=0.5;
+        if(radiusKm>30)radiusKm=30;
       }
 
       if(!bestResult||bestResult.failCount>3||bestResult.distance===0)
@@ -448,16 +460,28 @@ function run(){
     rpl.forEach(function(p){map.remove(p)});rpl=[];mg.forEach(function(m){if(!m._s)map.remove(m)});mg=mg.filter(function(m){return m._s});
     try{
       var routes=[];
+      var allValid=[]; // all routes with valid paths, regardless of distance
       for(var i=0;i<3;i++){
         var r=await gor(i);
         if(!r||r.path.length<10||r.distance<500) continue;
+        allValid.push(r);
         var km=r.distance/1000;
-        // Only show routes within a reasonable range of user's setting
-        // Allow 30% over the max (roads are longer than straight lines) but don't go below 70% of min
-        if(km<S.distMin*0.7) continue;
-        routes.push(r);
+        // Prefer routes within range (allow some tolerance)
+        if(km>=S.distMin*0.7&&km<=S.distMax*1.4) routes.push(r);
       }
-      if(!routes.length){noti('路线规划失败','error');return}
+      // Fallback: if fewer than 2 routes in-range, include the closest out-of-range ones
+      if(routes.length<2&&allValid.length>routes.length){
+        allValid.sort(function(a,b){
+          var mid=(S.distMin+S.distMax)/2*1000;
+          return Math.abs(a.distance-mid)-Math.abs(b.distance-mid);
+        });
+        for(var j=0;j<allValid.length&&routes.length<2;j++){
+          if(routes.indexOf(allValid[j])===-1)routes.push(allValid[j]);
+        }
+      }
+      // Re-index routes for color consistency
+      routes.forEach(function(r,i){r.index=i});
+      if(!routes.length){noti('路线规划失败，请调整参数重试','error');return}
       S.routes=routes;S.activeRoute=0;rrs();rrcs();sel(0);
       document.getElementById('rp').classList.add('show');document.getElementById('ep').classList.add('show');
     }catch(e){noti('出错了','error');console.error(e)}
