@@ -104,7 +104,7 @@ L('Page loaded, requesting AMap SDK...');
 </script>
 
 <script>
-window._AMapSecurityConfig={securityJsCode:'0fffd5de76e94c3ddd7ac4aebe71f9fb'};
+window._AMapSecurityConfig={securityJsCode:'2c986a8ca80da2a5a9707ffb067d0ff3'};
 </script>
 <script src="https://webapi.amap.com/maps?v=2.0&key=a6d81f0dd00a39595187f335361ae4e7&plugin=AMap.Riding,AMap.Geocoder,AMap.PlaceSearch,AMap.AutoComplete&callback=_amapCb"></script>
 <script>
@@ -145,6 +145,22 @@ function run(){
     m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
   }
 
+  var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
+
+  // REST API helpers
+  function restTips(kw){
+    return fetch('https://restapi.amap.com/v3/assistant/inputtips?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&output=json')
+      .then(function(r){return r.json()});
+  }
+  function restPlaceSearch(kw){
+    return fetch('https://restapi.amap.com/v5/place/text?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&page_size=5')
+      .then(function(r){return r.json()});
+  }
+  function restNearby(kw,lng,lat,radius){
+    return fetch('https://restapi.amap.com/v5/place/around?key='+WEB_KEY+'&keywords='+encodeURIComponent(kw)+'&location='+lng+','+lat+'&radius='+radius+'&page_size=3')
+      .then(function(r){return r.json()});
+  }
+
   // Start search
   var st;
   document.getElementById('si').addEventListener('input',function(){
@@ -152,19 +168,16 @@ function run(){
     if(v.length<2){c.classList.remove('show');return;}
     st=setTimeout(function(){
       L('search: '+v);
-      ac.search(v,function(s,r){
-        L('ac result: '+s);
-        if(s==='complete'&&r.tips){
-          var items=r.tips.filter(function(t){return t.location}).slice(0,5);
-          if(items.length>0){showS(c,items.map(function(t){return{name:t.name,dist:t.district||'',lng:t.location.lng,lat:t.location.lat}}));return;}
-        }
-        L('fallback to ps');
-        ps.search(v,function(s2,r2){
-          L('ps result: '+s2);
-          if(s2==='complete'&&r2.poiList){showS(c,r2.poiList.pois.slice(0,5).map(function(p){return{name:p.name,dist:p.address||'',lng:p.location.lng,lat:p.location.lat}}));}
-          else showS(c,[]);
-        });
-      });
+      restTips(v).then(function(d){
+        L('tips status: '+d.status+' count: '+(d.tips?d.tips.length:0));
+        if(d.status==='1'&&d.tips){
+          var items=d.tips.filter(function(t){return t.location&&t.location.length>0}).slice(0,5).map(function(t){
+            var ll=t.location.split(',');
+            return{name:t.name,dist:t.district||'',lng:parseFloat(ll[0]),lat:parseFloat(ll[1])};
+          });
+          showS(c,items);
+        }else{showS(c,[]);}
+      }).catch(function(e){L('search err: '+e.message);showS(c,[]);});
     },400);
   });
 
@@ -186,14 +199,15 @@ function run(){
     clearTimeout(pt);var v=this.value.trim(),c=document.getElementById('ps');
     if(v.length<2){c.classList.remove('show');return;}
     pt=setTimeout(function(){
-      ps.search(v,function(s,r){
-        if(s==='complete'&&r.poiList){
+      restTips(v).then(function(d){
+        if(d.status==='1'&&d.tips){
           c.innerHTML='';
-          r.poiList.pois.slice(0,5).forEach(function(p){
-            var d=document.createElement('div');d.className='si';
-            d.innerHTML=p.name+'<div class="ad">'+(p.address||'')+'</div>';
-            d.onclick=function(){S.pois.push({name:p.name,type:'exact',location:{lng:p.location.lng,lat:p.location.lat}});rpt();document.getElementById('pi').value='';c.classList.remove('show');};
-            c.appendChild(d);
+          d.tips.filter(function(t){return t.location&&t.location.length>0}).slice(0,5).forEach(function(t){
+            var ll=t.location.split(',');
+            var d2=document.createElement('div');d2.className='si';
+            d2.innerHTML=t.name+'<div class="ad">'+(t.district||t.address||'')+'</div>';
+            d2.onclick=function(){S.pois.push({name:t.name,type:'exact',location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])}});rpt();document.getElementById('pi').value='';c.classList.remove('show');};
+            c.appendChild(d2);
           });
           c.classList.add('show');
         }
@@ -268,11 +282,13 @@ function run(){
     if(!cats.length)return Promise.resolve([]);
     var mid=path[Math.floor(path.length/2)],res=[];
     return Promise.all(cats.map(function(cp){
-      return new Promise(function(rv){
-        ps.searchNearBy(cp.name,[mid.lng,mid.lat],3000,function(s,r){
-          if(s==='complete'&&r.poiList)r.poiList.pois.slice(0,2).forEach(function(p){res.push({name:p.name,location:{lng:p.location.lng,lat:p.location.lat},type:cp.name})});
-          rv();
-        });
+      return restNearby(cp.name,mid.lng,mid.lat,3000).then(function(d){
+        if(d.status==='1'&&d.pois){
+          d.pois.slice(0,2).forEach(function(p){
+            var ll=p.location.split(',');
+            res.push({name:p.name,location:{lng:parseFloat(ll[0]),lat:parseFloat(ll[1])},type:cp.name});
+          });
+        }
       });
     })).then(function(){return res});
   }
