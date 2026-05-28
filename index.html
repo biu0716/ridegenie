@@ -94,17 +94,17 @@
         <div class="range-labels"><span>5km</span><span>50km</span><span>100km</span></div>
       </div>
 
-      <div class="form-section"><div class="form-section-title">🏙 骑行区域</div><div class="chip-group" data-name="area"><div class="chip" data-value="urban">市区</div><div class="chip active" data-value="suburban">郊区</div><div class="chip" data-value="any">都行</div></div></div>
-      <div class="form-section"><div class="form-section-title">🛤 路面偏好</div><div class="chip-group" data-name="surface"><div class="chip active" data-value="paved">柏油路</div><div class="chip" data-value="greenway">绿道</div><div class="chip" data-value="any">都行</div></div></div>
-      <div class="form-section"><div class="form-section-title">🚗 车流偏好</div><div class="chip-group" data-name="traffic"><div class="chip active" data-value="less">尽量少</div><div class="chip" data-value="any">无所谓</div></div></div>
-      <div class="form-section"><div class="form-section-title">⛰ 坡度偏好</div><div class="chip-group" data-name="slope"><div class="chip active" data-value="flat">平路为主</div><div class="chip" data-value="moderate">适当爬坡</div><div class="chip" data-value="any">无所谓</div></div></div>
+      <div class="form-section"><div class="form-section-title">🏙 骑行区域</div><div class="chip-group" data-name="area"><div class="chip" data-value="urban">市区</div><div class="chip active" data-value="suburban">郊区</div><div class="chip" data-value="any">都行</div></div><input class="form-input note-input" data-note="area" placeholder="补充说明，如：望京附近" style="margin-top:8px;font-size:12px;padding:7px 12px"></div>
+      <div class="form-section"><div class="form-section-title">🛤 路面偏好</div><div class="chip-group" data-name="surface"><div class="chip active" data-value="paved">柏油路</div><div class="chip" data-value="greenway">绿道</div><div class="chip" data-value="any">都行</div></div><input class="form-input note-input" data-note="surface" placeholder="补充说明，如：沿河绿道优先" style="margin-top:8px;font-size:12px;padding:7px 12px"></div>
+      <div class="form-section"><div class="form-section-title">🚗 车流偏好</div><div class="chip-group" data-name="traffic"><div class="chip active" data-value="less">尽量少</div><div class="chip" data-value="any">无所谓</div></div><input class="form-input note-input" data-note="traffic" placeholder="补充说明，如：避开京藏高速辅路" style="margin-top:8px;font-size:12px;padding:7px 12px"></div>
+      <div class="form-section"><div class="form-section-title">⛰ 坡度偏好</div><div class="chip-group" data-name="slope"><div class="chip active" data-value="flat">平路为主</div><div class="chip" data-value="moderate">适当爬坡</div><div class="chip" data-value="any">无所谓</div></div><input class="form-input note-input" data-note="slope" placeholder="补充说明，如：最大坡度不超过5%" style="margin-top:8px;font-size:12px;padding:7px 12px"></div>
       <div class="form-section"><div class="form-section-title">🧭 方向偏好</div><div class="direction-grid"><div class="dir-btn" data-value="nw">↖</div><div class="dir-btn" data-value="n">北</div><div class="dir-btn" data-value="ne">↗</div><div class="dir-btn" data-value="w">西</div><div class="dir-btn center active" data-value="any">随意</div><div class="dir-btn" data-value="e">东</div><div class="dir-btn" data-value="sw">↙</div><div class="dir-btn" data-value="s">南</div><div class="dir-btn" data-value="se">↘</div></div></div>
       <div class="form-section"><div class="form-section-title">☕ 途经目的地</div><div style="position:relative"><input class="form-input" id="pi" placeholder="搜索具体店名" autocomplete="off"><div class="sbox" id="ps"></div></div><div class="quick-poi"><div class="qp" data-type="咖啡店">☕ 咖啡店</div><div class="qp" data-type="便利店">🏪 便利店</div><div class="qp" data-type="公园">🌳 公园</div><div class="qp" data-type="餐厅">🍜 餐厅</div></div><div class="poi-tags" id="pt"></div></div>
     </div>
     <div class="sidebar-footer"><button class="gen-btn" id="gb">🚴 生成骑行路线</button></div>
   </div>
   <div class="main">
-    <div id="map-container"><div class="mempty" id="me"><div style="font-size:48px;color:var(--border);margin-bottom:16px">🚴</div><div style="color:var(--text-dim);font-size:15px;text-align:center;line-height:1.6">设置出发点和偏好<br>点击「生成骑行路线」开始</div></div></div>
+    <div id="map-container"><div class="mempty" id="me"></div></div>
     <div class="rpanel" id="rp"></div>
     <div class="lov" id="lov"><div class="lspin"></div><div class="ltxt">正在规划路线...</div></div>
     <div class="epanel" id="ep"><div class="etitle">📈 坡度剖面</div><canvas id="ecanvas"></canvas></div>
@@ -123,7 +123,7 @@ setTimeout(function(){if(typeof window.AMap!=='undefined'&&!window._started)run(
 function run(){
   if(window._started)return;window._started=true;
   var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
-  var S={startPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京'};
+  var S={startPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京',notes:{}};
   var map,geo,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
   // Route labels
   var routeLabels=[
@@ -160,6 +160,7 @@ function run(){
 
   function asm(){
     mg.forEach(function(m){if(m._s)map.remove(m)});mg=mg.filter(function(m){return!m._s});
+    document.getElementById('me').style.display='none';
     if(!S.startPoint)return;
     var m=new AMap.Marker({position:[S.startPoint.lng,S.startPoint.lat],content:'<div style="width:24px;height:24px;background:#4ade80;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',offset:new AMap.Pixel(-12,-12)});
     m._s=true;map.add(m);mg.push(m);map.setCenter([S.startPoint.lng,S.startPoint.lat]);
@@ -234,6 +235,9 @@ function run(){
       c.onclick=function(){g.querySelectorAll('.chip').forEach(function(x){x.classList.remove('active')});c.classList.add('active');S[g.dataset.name]=c.dataset.value}
     });
   });
+  document.querySelectorAll('.note-input').forEach(function(inp){
+    inp.addEventListener('input',function(){S.notes[inp.dataset.note]=inp.value.trim()});
+  });
   document.querySelectorAll('.dir-btn').forEach(function(b){
     b.onclick=function(){document.querySelectorAll('.dir-btn').forEach(function(x){x.classList.remove('active')});b.classList.add('active');S.direction=b.dataset.value}
   });
@@ -291,11 +295,11 @@ function run(){
   }
   function mel(n,sl){var p=[],e=50+Math.random()*30,mv=sl==='flat'?5:sl==='moderate'?15:10;for(var i=0;i<Math.min(n,200);i++){var pr=i/Math.min(n,200);e+=(Math.random()-.5)*2;p.push(Math.max(10,e+Math.sin(pr*Math.PI*3)*mv+Math.sin(pr*Math.PI*7)*mv*.3))}return p}
 
-  // Calorie estimation: ~30 kcal/km base + 8 kcal per 10m climb
+  // Calorie estimation: ~22 kcal/km base for cycling + 5 kcal per 10m climb
   function calcCal(distM,elevData){
     var km=distM/1000,climb=0;
     for(var i=1;i<elevData.length;i++)if(elevData[i]>elevData[i-1])climb+=elevData[i]-elevData[i-1];
-    return Math.round(km*30+climb*0.8);
+    return Math.round(km*22+climb*0.5);
   }
 
   // Route configs: each route uses different spread and angle offset to create variety
@@ -308,17 +312,31 @@ function run(){
   async function gor(idx){
     var c=S.startPoint;
     var cfg=routeConfigs[idx]||routeConfigs[0];
-    // Use a distance within the range
     var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.8:0.5);
     var wps=gwp(c,targetDist,S.direction,cfg.spread,cfg.offset);
-    // Scale by radiusMult
     wps=wps.map(function(w){
       var dlng=(w.lng-c.lng)*cfg.radiusMult,dlat=(w.lat-c.lat)*cfg.radiusMult;
       return{lng:c.lng+dlng,lat:c.lat+dlat};
     });
     S.pois.filter(function(p){return p.type==='exact'}).forEach(function(p,i){if(i<wps.length)wps[i]={lng:p.location.lng,lat:p.location.lat}});
     var pts=[c].concat(wps).concat([c]),fp=[],td=0,tt=0;
-    for(var i=0;i<pts.length-1;i++){var r=await rr(pts[i],pts[i+1]);if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}}
+    for(var i=0;i<pts.length-1;i++){
+      var r=await rr(pts[i],pts[i+1]);
+      if(r){td+=r.distance;tt+=r.time;fp=fp.concat(ep(r))}
+      else{
+        // Fallback: if riding route fails for this segment, insert straight line
+        fp.push({lng:pts[i].lng,lat:pts[i].lat});
+        fp.push({lng:pts[i+1].lng,lat:pts[i+1].lat});
+      }
+    }
+    // Ensure closure: if last point is far from start, add start point
+    if(fp.length>0){
+      var last=fp[fp.length-1];
+      var dLat=Math.abs(last.lat-c.lat),dLng=Math.abs(last.lng-c.lng);
+      if(dLat>0.001||dLng>0.001){
+        fp.push({lng:c.lng,lat:c.lat});
+      }
+    }
     var fpoi=await scpoi(fp);
     var elev=mel(fp.length,S.slope);
     return{index:idx,path:fp,distance:td,time:tt,elevation:elev,calories:calcCal(td,elev),pois:S.pois.filter(function(p){return p.type==='exact'}).map(function(p){return{name:p.name,location:p.location,type:'指定'}}).concat(fpoi)};
@@ -369,7 +387,7 @@ function run(){
         '<div><div class="rsl">总爬升</div><div class="rsv">+'+climb.toFixed(0)+'m</div></div>'+
         '<div><div class="rsl">🔥 卡路里</div><div class="rsv">'+r.calories+' kcal</div></div>'+
         '<div><div class="rsl">最高海拔</div><div class="rsv">'+Math.max.apply(null,r.elevation).toFixed(0)+'m</div></div>'+
-        '<div><div class="rsl">沿途POI</div><div class="rsv">'+r.pois.length+'个</div></div>'+
+        '<div><div class="rsl">沿途歇脚点</div><div class="rsv">'+r.pois.length+'个</div></div>'+
         '<div><div class="rsl">类型</div><div class="rsv" style="font-size:11px">'+['紧凑','宽松','探索'][i]+'</div></div>'+
         '</div>';
       cd.onclick=function(){sel(i)};panel.appendChild(cd);
