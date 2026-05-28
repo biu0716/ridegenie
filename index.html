@@ -122,7 +122,7 @@ function run(){
   if(window._started)return;window._started=true;
   var WEB_KEY='0fffd5de76e94c3ddd7ac4aebe71f9fb';
   var S={startPoint:null,endPoint:null,distMin:25,distMax:35,area:'suburban',surface:'paved',traffic:'less',slope:'flat',direction:'any',pois:[],routes:[],activeRoute:0,city:'北京',notes:{}};
-  var map,geo,rpl=[],mg=[],rc=['#4ade80','#60a5fa','#fb923c'];
+  var map,geo,rpl=[],mg=[],rc=['#e879f9','#38bdf8','#fbbf24'];
   // Route labels - will be dynamically set based on mode
   function getRouteLabels(){
     if(S.endPoint){
@@ -294,16 +294,21 @@ function run(){
   // Route generation
   function gda(d){var a={n:90,ne:45,e:0,se:-45,s:-90,sw:-135,w:180,nw:135};return a[d]!==undefined?a[d]:null}
 
-  // Generate waypoints with configurable spread and offset
   // Generate waypoints with adjustable scale factor
+  // Key insight: road distance ≈ 1.4x straight-line distance in cities
+  // For a loop of N km with 4 waypoints forming a rough square,
+  // each side ≈ N/5 km (4 sides + extra for non-straight roads)
+  // So waypoint distance from center ≈ N/5 / sqrt(2) ≈ N/7 km
   function gwp(c,dk,direction,spread,angleOffset,scaleFactor){
     var sf=scaleFactor||1.0;
-    var R=dk/(2*Math.PI)*1.1*sf,n=4,w=[],ba=gda(direction);
+    var R=(dk/7)*sf; // radius in km
+    var n=4,w=[],ba=gda(direction);
     for(var i=0;i<n;i++){
       var ang;
       if(ba!==null) ang=ba-spread/2+(spread/(n-1))*i+angleOffset;
-      else ang=(360/n)*i+angleOffset+(Math.random()*20-10);
-      var rad=ang*Math.PI/180,r=R*(.75+Math.random()*.25);
+      else ang=(360/n)*i+angleOffset+(Math.random()*15-7.5);
+      var rad=ang*Math.PI/180;
+      var r=R*(0.85+Math.random()*0.15); // less randomness for more predictable distances
       w.push({lng:c.lng+(r/(111*Math.cos(c.lat*Math.PI/180)))*Math.cos(rad),lat:c.lat+(r/111)*Math.sin(rad)});
     }return w;
   }
@@ -349,9 +354,9 @@ function run(){
   }
 
   var routeConfigs=[
-    {spread:90,offset:0,radiusMult:0.85},
-    {spread:120,offset:30,radiusMult:1.0},
-    {spread:100,offset:180,radiusMult:0.9}
+    {spread:100,offset:0,radiusMult:1.0},     // Compact: standard arc
+    {spread:140,offset:45,radiusMult:1.0},     // Scenic: wider arc, rotated 45°
+    {spread:110,offset:150,radiusMult:1.0}     // Explore: opposite-ish direction
   ];
 
   // Build a loop route with given scale, return {path, distance, time, failCount}
@@ -382,7 +387,7 @@ function run(){
   async function gor(idx){
     var c=S.startPoint;
     var cfg=routeConfigs[idx]||routeConfigs[0];
-    var targetDist=S.distMin+(S.distMax-S.distMin)*(idx===0?0.3:idx===1?0.7:0.5);
+    var targetDist=(S.distMin+S.distMax)/2; // aim for middle of range
     var targetDistM=targetDist*1000;
     var fp=[],td=0,tt=0;
 
